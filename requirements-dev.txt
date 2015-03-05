@@ -1,0 +1,4 @@
+ipdb
+nose
+coverage
+flake8
