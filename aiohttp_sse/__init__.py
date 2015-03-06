@@ -1,9 +1,10 @@
-__version__ = '0.0.1'
-
-import aiohttp
 from aiohttp.web import StreamResponse
 from aiohttp.protocol import Response as ResponseImpl
 from aiohttp import hdrs
+
+
+__version__ = '0.0.1'
+__all__ = ['EventSourceResponse']
 
 
 class EventSourceResponse(StreamResponse):
@@ -14,9 +15,9 @@ class EventSourceResponse(StreamResponse):
         if headers is not None:
             self.headers.extend(headers)
 
-        self.headers.add('Content-Type', 'text/event-stream')
-        self.headers.add('Cache-Control', 'no-cache')
-        self.headers.add('Connection', 'keep-alive')
+        self.headers['Content-Type'] =  'text/event-stream'
+        self.headers['Cache-Control'] = 'no-cache'
+        self.headers['Connection'] = 'keep-alive'
 
     def send(self, data, id=None, event=None, retry=None):
 
@@ -39,6 +40,9 @@ class EventSourceResponse(StreamResponse):
 
         self._req = request
         keep_alive = self._keep_alive
+        if keep_alive is None:
+            keep_alive = request.keep_alive
+        self._keep_alive = keep_alive
 
         resp_impl = self._resp_impl = ResponseImpl(
             request._writer,
@@ -54,6 +58,11 @@ class EventSourceResponse(StreamResponse):
                     'deflate' in request.headers.get(
                         hdrs.ACCEPT_ENCODING, '')):
                 resp_impl.add_compression_filter()
+
+        if self._chunked:
+            resp_impl.enable_chunked_encoding()
+            if self._chunk_size:
+                resp_impl.add_chunking_filter(self._chunk_size)
 
         headers = self.headers.items()
         for key, val in headers:
