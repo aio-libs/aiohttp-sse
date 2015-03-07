@@ -9,7 +9,9 @@ def chat(request):
     <html>
       <head>
         <title>Tiny Chat</title>
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <script
+        src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js">
+        </script>
         <style>
         .messages {
           overflow: scroll;
@@ -76,6 +78,7 @@ def chat(request):
 
     return resp
 
+
 @asyncio.coroutine
 def message(request):
     app = request.app
@@ -99,7 +102,7 @@ def subscribe(request):
         yield from response.wait()
     except Exception as e:
         app['sockets'].remove(response)
-        raise
+        raise e
 
     return response
 

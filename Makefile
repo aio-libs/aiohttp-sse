@@ -1,7 +1,7 @@
 # Some simple testing tasks (sorry, UNIX only).
 
 flake:
-	flake8 aiohttp_sse tests
+	flake8 aiohttp_sse tests examples
 
 test: flake
 	nosetests -s ./tests/
