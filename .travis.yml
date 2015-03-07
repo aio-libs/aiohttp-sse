@@ -1,0 +1,21 @@
+language: python
+python:
+  - 3.3
+  - 3.4
+
+install:
+    - pip install flake8
+    - pip install nose
+    - pip install coverage
+    - pip install .
+    - pip install coveralls
+
+script:
+    make cov
+after_success:
+    coveralls
+
+env:
+  matrix:
+    - PYTHONASYNCIODEBUG=1
+    - PYTHONASYNCIODEBUG=0
