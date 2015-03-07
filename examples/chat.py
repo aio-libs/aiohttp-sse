@@ -4,7 +4,6 @@ from aiohttp.web import Application, Response
 from aiohttp_sse import EventSourceResponse
 
 
-
 def chat(request):
     d = b"""
     <html>
@@ -81,33 +80,34 @@ def chat(request):
 def message(request):
     app = request.app
     data = yield from request.post()
-    for fut, es in app['sockets']:
-        es.send(json.dumps(dict(data)))
+
+    for es in app['sockets']:
+        payload = json.dumps(dict(data))
+        es.send(payload)
     return Response()
 
 
 @asyncio.coroutine
 def subscribe(request):
-    resp = EventSourceResponse()
-    resp.start(request)
+    response = EventSourceResponse()
+    response.start(request)
+    app = request.app
 
-    fut = asyncio.Future(loop=loop)
     print('Someone joined.')
-    for fut, es in request.app['sockets']:
-        try:
-            es.send('{"sender": "BOT", "message": "someone joined."}', id=5)
-        except Exception as e:
-            print(e)
-            fut.set_result(None)
-    request.app['sockets'].append((fut, resp))
-    yield from fut
-    return resp
+    request.app['sockets'].add(response)
+    try:
+        yield from response.wait()
+    except Exception as e:
+        app['sockets'].remove(response)
+        raise
+
+    return response
 
 
 @asyncio.coroutine
 def init(loop):
     app = Application(loop=loop)
-    app['sockets'] = []
+    app['sockets'] = set()
 
     app.router.add_route('GET', '/chat', chat)
     app.router.add_route('POST', '/everyone', message)
