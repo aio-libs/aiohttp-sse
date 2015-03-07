@@ -28,8 +28,6 @@ class EventSourceResponse(StreamResponse):
 
     def send(self, data, id=None, event=None, retry=None):
 
-        if retry is not None:
-            self.write('retry: {0}\n'.format(retry).encode('utf-8'))
         if id is not None:
             self.write('id: {0}\n'.format(id).encode('utf-8'))
 
@@ -37,8 +35,11 @@ class EventSourceResponse(StreamResponse):
             self.write('event: {0}\n'.format(event).encode('utf-8'))
 
         for chunk in data.split('\n'):
-            if chunk:
-                self.write('data: {0}\n'.format(chunk).encode('utf-8'))
+            self.write('data: {0}\n'.format(chunk).encode('utf-8'))
+
+        if retry is not None:
+            self.write('retry: {0}\n'.format(retry).encode('utf-8'))
+
         self.write(b'\n')
 
     def start(self, request):
