@@ -30,6 +30,9 @@ Example
             yield from asyncio.sleep(1, loop=loop)
             resp.send('foo {}'.format(i))
 
+        resp.stop_streaming()
+        return resp
+
 
     @asyncio.coroutine
     def index(request):
