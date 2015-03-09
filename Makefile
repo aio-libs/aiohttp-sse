@@ -6,10 +6,9 @@ flake:
 test: flake
 	nosetests -s ./tests/
 
-cov cover coverage:
-	nosetests -s --with-cover --cover-html --cover-branches \
-            --cover-html-dir ./coverage --cover-package=aiohttp_sse ./tests/
-	@echo "open file://`pwd`/coverage/index.html"
+cov cover coverage: flake
+	nosetests -s --with-cover --cover-html --cover-branches --cover-package=aiohttp_sse ./tests/
+	@echo "open file://`pwd`/cover/index.html"
 
 clean:
 	rm -rf `find . -name __pycache__`
