@@ -11,6 +11,8 @@ def hello(request):
         print('foo')
         yield from asyncio.sleep(1, loop=loop)
         resp.send('foo {}'.format(i))
+    resp.stop_streaming()
+    return resp
 
 
 @asyncio.coroutine
