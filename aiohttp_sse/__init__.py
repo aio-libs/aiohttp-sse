@@ -27,6 +27,10 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
 
+    def enable_chunked_encoding(self, chunk_size=None):
+        raise RuntimeError('Chunked encoding is not supported for '
+                           'server-sent events')
+
     def send(self, data, id=None, event=None, retry=None):
 
         if id is not None:
@@ -73,11 +77,6 @@ class EventSourceResponse(StreamResponse):
                         hdrs.ACCEPT_ENCODING, '')):
                 resp_impl.add_compression_filter()
 
-        if self._chunked:
-            resp_impl.enable_chunked_encoding()
-            if self._chunk_size:
-                resp_impl.add_chunking_filter(self._chunk_size)
-
         headers = self.headers.items()
         for key, val in headers:
             resp_impl.add_header(key, val)
@@ -117,6 +116,4 @@ class EventSourceResponse(StreamResponse):
     def _ping(self):
         while True:
             yield from asyncio.sleep(self._ping_interval, loop=self._loop)
-            if self._finish_fut.done():
-                break
             self.write(b':ping\n\n')
