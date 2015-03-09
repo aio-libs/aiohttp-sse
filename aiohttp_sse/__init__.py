@@ -10,7 +10,7 @@ __all__ = ['EventSourceResponse']
 
 class EventSourceResponse(StreamResponse):
 
-    PING_TIME = 15
+    DEFAULT_PING_INTERVAL = 15
 
     def __init__(self, *, status=200, reason=None, headers=None):
         super().__init__(status=status, reason=reason)
@@ -24,6 +24,7 @@ class EventSourceResponse(StreamResponse):
 
         self._loop = None
         self._finish_fut = None
+        self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
 
     def send(self, data, id=None, event=None, retry=None):
@@ -44,7 +45,7 @@ class EventSourceResponse(StreamResponse):
 
     def start(self, request):
         if request.method != 'GET':
-            raise HTTPMethodNotAllowed()
+            raise HTTPMethodNotAllowed(request.method, ['GET'])
 
         self._loop = request.app.loop
         self._finish_fut = asyncio.Future(loop=self._loop)
@@ -85,6 +86,20 @@ class EventSourceResponse(StreamResponse):
         self._ping_task = asyncio.Task(self._ping(), loop=self._loop)
         return resp_impl
 
+    @property
+    def ping_interval(self):
+        return self._ping_interval
+
+    @ping_interval.setter
+    def ping_interval(self, value):
+
+        if not isinstance(value, int):
+            raise TypeError("ping interval must be int")
+        if value < 0:
+            raise ValueError("ping interval must be greater then 0")
+
+        self._ping_interval = value
+
     def _cancel_ping(self, fut):
         self._ping_task.cancel()
 
@@ -101,7 +116,7 @@ class EventSourceResponse(StreamResponse):
     @asyncio.coroutine
     def _ping(self):
         while True:
-            yield from asyncio.sleep(self.PING_TIME, loop=self._loop)
+            yield from asyncio.sleep(self._ping_interval, loop=self._loop)
             if self._finish_fut.done():
                 break
             self.write(b':ping\n\n')
