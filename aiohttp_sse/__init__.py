@@ -1,5 +1,5 @@
 import asyncio
-from aiohttp import hdrs
+import io
 from aiohttp.protocol import Response as ResponseImpl
 from aiohttp.web import StreamResponse
 from aiohttp.web import HTTPMethodNotAllowed
@@ -32,20 +32,20 @@ class EventSourceResponse(StreamResponse):
                            'server-sent events')
 
     def send(self, data, id=None, event=None, retry=None):
-
+        buffer = io.BytesIO()
         if id is not None:
-            self.write('id: {0}\n'.format(id).encode('utf-8'))
+            buffer.write('id: {0}\n'.format(id).encode('utf-8'))
 
         if event is not None:
-            self.write('event: {0}\n'.format(event).encode('utf-8'))
+            buffer.write('event: {0}\n'.format(event).encode('utf-8'))
 
         for chunk in data.split('\n'):
-            self.write('data: {0}\n'.format(chunk).encode('utf-8'))
+            buffer.write('data: {0}\n'.format(chunk).encode('utf-8'))
 
         if retry is not None:
-            self.write('retry: {0}\n'.format(retry).encode('utf-8'))
-
-        self.write(b'\n')
+            buffer.write('retry: {0}\n'.format(retry).encode('utf-8'))
+        buffer.write(b'\n')
+        self.write(buffer.getvalue())
 
     def start(self, request):
         if request.method != 'GET':
