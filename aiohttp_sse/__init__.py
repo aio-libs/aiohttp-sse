@@ -27,9 +27,8 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
 
-    def enable_chunked_encoding(self, chunk_size=None):
-        raise RuntimeError('Chunked encoding is not supported for '
-                           'server-sent events')
+    def enable_compression(self, force=False):
+        raise NotImplementedError
 
     def send(self, data, id=None, event=None, retry=None):
         buffer = io.BytesIO()
@@ -70,12 +69,6 @@ class EventSourceResponse(StreamResponse):
             self._reason)
 
         self._copy_cookies()
-
-        if self._compression:
-            if (self._compression_force or
-                    'deflate' in request.headers.get(
-                        hdrs.ACCEPT_ENCODING, '')):
-                resp_impl.add_compression_filter()
 
         headers = self.headers.items()
         for key, val in headers:

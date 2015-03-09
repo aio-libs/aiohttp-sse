@@ -120,6 +120,11 @@ class TestSimple(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             response.stop_streaming()
 
+    def test_compression_not_implemented(self):
+        response = EventSourceResponse()
+        with self.assertRaises(NotImplementedError):
+            response.enable_compression()
+
     def test_ping_property(self):
         response = EventSourceResponse()
         default = response.DEFAULT_PING_INTERVAL
@@ -132,11 +137,6 @@ class TestSimple(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             response.ping_interval = -42
-
-    def test_chunked_encoding_not_supported(self):
-        response = EventSourceResponse()
-        with self.assertRaises(RuntimeError):
-            response.enable_chunked_encoding()
 
     def test_ping(self):
 
