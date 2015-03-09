@@ -3,6 +3,9 @@ aiohttp_sse
 .. image:: https://travis-ci.org/jettify/aiohttp_sse.svg?branch=master
     :target: https://travis-ci.org/jettify/aiohttp_sse
 
+.. image:: https://coveralls.io/repos/jettify/aiohttp_sse/badge.svg
+    :target: https://coveralls.io/r/jettify/aiohttp_sse
+
 The EventSource interface is used to receive server-sent events. It connects
 to a server over HTTP and receives events in text/event-stream format without
 closing the connection. *aiohttp_sse* provides support for server-sent
