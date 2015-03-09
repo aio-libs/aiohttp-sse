@@ -33,17 +33,17 @@ class EventSourceResponse(StreamResponse):
     def send(self, data, id=None, event=None, retry=None):
         buffer = io.BytesIO()
         if id is not None:
-            buffer.write('id: {0}\n'.format(id).encode('utf-8'))
+            buffer.write('id: {0}\r\n'.format(id).encode('utf-8'))
 
         if event is not None:
-            buffer.write('event: {0}\n'.format(event).encode('utf-8'))
+            buffer.write('event: {0}\r\n'.format(event).encode('utf-8'))
 
-        for chunk in data.split('\n'):
-            buffer.write('data: {0}\n'.format(chunk).encode('utf-8'))
+        for chunk in data.split('\r\n'):
+            buffer.write('data: {0}\r\n'.format(chunk).encode('utf-8'))
 
         if retry is not None:
-            buffer.write('retry: {0}\n'.format(retry).encode('utf-8'))
-        buffer.write(b'\n')
+            buffer.write('retry: {0}\r\n'.format(retry).encode('utf-8'))
+        buffer.write(b'\r\n')
         self.write(buffer.getvalue())
 
     def start(self, request):
@@ -109,4 +109,4 @@ class EventSourceResponse(StreamResponse):
     def _ping(self):
         while True:
             yield from asyncio.sleep(self._ping_interval, loop=self._loop)
-            self.write(b':ping\n\n')
+            self.write(b':ping\r\n\r\n')

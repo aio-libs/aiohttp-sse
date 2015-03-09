@@ -54,9 +54,10 @@ class TestSimple(unittest.TestCase):
 
             # check streamed data
             streamed_data = yield from resp.text()
-            expected = 'data: foo\n\nevent: bar\ndata: foo\n\nid: xyz\n' \
-                       'event: bar\ndata: foo\n\nid: xyz\nevent: bar\n' \
-                       'data: foo\nretry: 1\n\n'
+            expected = 'data: foo\r\n\r\n' \
+                       'event: bar\r\ndata: foo\r\n\r\n' \
+                       'id: xyz\r\nevent: bar\r\ndata: foo\r\n\r\n' \
+                       'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
             self.assertEqual(streamed_data, expected)
 
             # check that EventSourceResponse object works only
@@ -104,7 +105,7 @@ class TestSimple(unittest.TestCase):
             self.assertEqual(200, resp.status)
             streamed_data = yield from resp.text()
 
-            expected = 'id: xyz\nevent: bar\ndata: foo\nretry: 1\n\n'
+            expected = 'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
             self.assertEqual(streamed_data, expected)
 
             srv.close()
@@ -174,7 +175,7 @@ class TestSimple(unittest.TestCase):
             self.assertEqual(200, resp.status)
             streamed_data = yield from resp.text()
 
-            expected = 'data: foo\n\n' + ':ping\n\n'
+            expected = 'data: foo\r\n\r\n' + ':ping\r\n\r\n'
             self.assertEqual(streamed_data, expected)
 
             srv.close()
