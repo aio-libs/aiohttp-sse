@@ -9,6 +9,9 @@ __all__ = ['EventSourceResponse']
 
 
 class EventSourceResponse(StreamResponse):
+    """This object could be used as regular aiohttp response for
+    streaming data to client, usually browser with EventSource
+    """
 
     DEFAULT_PING_INTERVAL = 15
 
@@ -18,6 +21,7 @@ class EventSourceResponse(StreamResponse):
         if headers is not None:
             self.headers.extend(headers)
 
+        # mandatory for servers-sent events headers
         self.headers['Content-Type'] = 'text/event-stream'
         self.headers['Cache-Control'] = 'no-cache'
         self.headers['Connection'] = 'keep-alive'
@@ -57,7 +61,6 @@ class EventSourceResponse(StreamResponse):
         resp_impl = self._start_pre_check(request)
         if resp_impl is not None:
             return resp_impl
-
         self._req = request
 
         self._keep_alive = True
@@ -70,6 +73,11 @@ class EventSourceResponse(StreamResponse):
 
         self._copy_cookies()
 
+        # explicitly enabling chunked encoding, since content length
+        # usually not known beforehand.
+        self._chunked = True
+        resp_impl.enable_chunked_encoding()
+
         headers = self.headers.items()
         for key, val in headers:
             resp_impl.add_header(key, val)
@@ -80,6 +88,7 @@ class EventSourceResponse(StreamResponse):
 
     @property
     def ping_interval(self):
+        """Time interval between two ping massages"""
         return self._ping_interval
 
     @ping_interval.setter
@@ -93,14 +102,24 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval = value
 
     def _cancel_ping(self, fut):
+        # task with connection was canceled or user called ``stop_streaming``
+        # method, this callback will cancel ping task so we will not have
+        # pending task related errors, like trying to write into closed socket.
         self._ping_task.cancel()
 
     def wait(self):
+        """EventSourceResponse object is used for streaming data to the client,
+        this method returns future, so we can wain until connection will
+        be closed or other task explicitly call ``stop_streaming`` method.
+        """
         if not self._finish_fut:
             raise RuntimeError('Response is not started')
         return self._finish_fut
 
     def stop_streaming(self):
+        """Used in conjunction with ``wait`` could be called from other task
+        to notify client that server no longer wants to stream anything.
+        """
         if not self._finish_fut:
             raise RuntimeError('Response is not started')
         self._finish_fut.set_result(None)
