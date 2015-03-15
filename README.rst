@@ -79,6 +79,14 @@ Example
     except KeyboardInterrupt:
         loop.run_until_complete(handler.finish_connections())
 
+
+EventSource Protocol
+--------------------
+
+* http://www.w3.org/TR/2011/WD-eventsource-20110310/
+* https://developer.mozilla.org/en-US/docs/Server-sent_events/Using_server-sent_events
+
+
 Requirements
 ------------
 
