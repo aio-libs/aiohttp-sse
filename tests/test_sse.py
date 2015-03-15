@@ -175,7 +175,7 @@ class TestSimple(unittest.TestCase):
             self.assertEqual(200, resp.status)
             streamed_data = yield from resp.text()
 
-            expected = 'data: foo\r\n\r\n' + ':ping\r\n\r\n'
+            expected = 'data: foo\r\n\r\n' + ': ping\r\n\r\n'
             self.assertEqual(streamed_data, expected)
 
             srv.close()

@@ -128,4 +128,4 @@ class EventSourceResponse(StreamResponse):
     def _ping(self):
         while True:
             yield from asyncio.sleep(self._ping_interval, loop=self._loop)
-            self.write(b':ping\r\n\r\n')
+            self.write(b': ping\r\n\r\n')
