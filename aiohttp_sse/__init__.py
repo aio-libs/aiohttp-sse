@@ -10,7 +10,17 @@ __all__ = ['EventSourceResponse']
 
 class EventSourceResponse(StreamResponse):
     """This object could be used as regular aiohttp response for
-    streaming data to client, usually browser with EventSource
+    streaming data to client, usually browser with EventSource::
+
+        @asyncio.coroutine
+        def hello(request):
+            # create response object
+            resp = EventSourceResponse()
+            # prepare and send headers
+            resp.start(request)
+            # stream data
+            resp.send('foo')
+            return resp
     """
 
     DEFAULT_PING_INTERVAL = 15
@@ -126,6 +136,9 @@ class EventSourceResponse(StreamResponse):
 
     @asyncio.coroutine
     def _ping(self):
+        # periodically send ping to the browser. Any message that
+        # starts with ":" colon ignored by a browser and could be used
+        # as ping message.
         while True:
             yield from asyncio.sleep(self._ping_interval, loop=self._loop)
             self.write(b': ping\r\n\r\n')
