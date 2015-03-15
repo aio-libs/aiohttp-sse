@@ -149,10 +149,10 @@ class TestSimple(unittest.TestCase):
 
     def test_wait_stop_streaming_errors(self):
         response = EventSourceResponse()
-        with self.assertRaises(RuntimeError):
+        with self.assertRaisesRegex(RuntimeError, 'Response is not started'):
             response.wait()
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaisesRegex(RuntimeError, 'Response is not started'):
             response.stop_streaming()
 
     def test_compression_not_implemented(self):
@@ -166,8 +166,7 @@ class TestSimple(unittest.TestCase):
         self.assertEqual(response.ping_interval, default)
         response.ping_interval = 25
         self.assertEqual(response.ping_interval, 25)
-
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(TypeError, 'ping interval'):
             response.ping_interval = 'ten'
 
         with self.assertRaises(ValueError):
