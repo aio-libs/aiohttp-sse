@@ -113,6 +113,40 @@ class TestSimple(unittest.TestCase):
 
         self.loop.run_until_complete(go())
 
+    def test_retry(self):
+
+        @asyncio.coroutine
+        def func(request):
+            resp = EventSourceResponse()
+            resp.start(request)
+            with self.assertRaises(TypeError):
+                resp.send('foo', retry='one')
+            resp.send('foo', retry=1)
+            return resp
+
+        @asyncio.coroutine
+        def go():
+            app = web.Application(loop=self.loop)
+            app.router.add_route('GET', '/', func)
+
+            port = self.find_unused_port()
+            srv = yield from self.loop.create_server(
+                app.make_handler(), '127.0.0.1', port)
+            url = "http://127.0.0.1:{}/".format(port)
+
+            resp = yield from aiohttp.request('GET', url, loop=self.loop)
+            self.assertEqual(200, resp.status)
+
+            # check streamed data
+            streamed_data = yield from resp.text()
+            expected = 'data: foo\r\nretry: 1\r\n\r\n'
+            self.assertEqual(streamed_data, expected)
+
+            srv.close()
+            self.addCleanup(srv.close)
+
+        self.loop.run_until_complete(go())
+
     def test_wait_stop_streaming_errors(self):
         response = EventSourceResponse()
         with self.assertRaises(RuntimeError):
