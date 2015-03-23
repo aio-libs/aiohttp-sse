@@ -55,9 +55,7 @@ Example
             </body>
         </html>
         """
-        resp = Response(body=d)
-
-        return resp
+        return Response(body=d)
 
 
     @asyncio.coroutine
