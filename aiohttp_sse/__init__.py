@@ -144,7 +144,6 @@ class EventSourceResponse(StreamResponse):
         """Setter for ping_interval property.
 
         :param int value: interval in sec between two ping values.
-        :return:
         """
 
         if not isinstance(value, int):
