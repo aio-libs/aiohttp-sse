@@ -4,11 +4,11 @@ flake:
 	flake8 aiohttp_sse tests examples
 
 test: flake
-	nosetests -s ./tests/
+	pytest tests/
 
 cov cover coverage: flake
-	nosetests -s --with-cover --cover-html --cover-branches --cover-package=aiohttp_sse ./tests/
-	@echo "open file://`pwd`/cover/index.html"
+	pytest tests/ --cov=aiohttp_sse --cov-report=html
+	@echo "open file://`pwd`/htmlcov/index.html"
 
 clean:
 	rm -rf `find . -name __pycache__`

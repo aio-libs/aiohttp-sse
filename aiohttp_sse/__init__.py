@@ -66,8 +66,6 @@ class EventSourceResponse(StreamResponse):
             close=not self._keep_alive,
             reason=self._reason)
 
-        self._copy_cookies()
-
         # explicitly enabling chunked encoding, since content length
         # usually not known beforehand.
         self._chunked = True
