@@ -176,7 +176,7 @@ def test_ping(loop, unused_port):
         app.make_handler(), '127.0.0.1', port)
     url = "http://127.0.0.1:{}/".format(port)
 
-    resp_task = asyncio.ensure_future(
+    resp_task = asyncio.async(
         aiohttp.request('GET', url, loop=loop),
         loop=loop)
 
