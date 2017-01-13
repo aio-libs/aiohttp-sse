@@ -1,7 +1,7 @@
 CHANGES
 =======
 
-0.0.1 (xxx-xx-xx)
+0.0.1 (2016-01-13)
 ------------------
 
-- Initial release
+* Initial release
