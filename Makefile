@@ -1,7 +1,7 @@
 # Some simple testing tasks (sorry, UNIX only).
 
 flake:
-	flake8 aiohttp_sse tests examples
+	flake8 aiohttp_sse tests examples setup.py
 
 test: flake
 	pytest tests/
