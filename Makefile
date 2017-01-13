@@ -4,10 +4,10 @@ flake:
 	flake8 aiohttp_sse tests examples setup.py
 
 test: flake
-	pytest tests/
+	pytest -sv tests/
 
 cov cover coverage: flake
-	pytest tests/ --cov=aiohttp_sse --cov-report=html
+	pytest -sv tests/ --cov=aiohttp_sse --cov-report=html
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 clean:
