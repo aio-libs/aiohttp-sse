@@ -6,6 +6,10 @@ aiohttp_sse
 .. image:: https://coveralls.io/repos/aio-libs/aiohttp_sse/badge.svg
     :target: https://coveralls.io/r/aio-libs/aiohttp_sse
 
+.. image:: https://pyup.io/repos/github/aio-libs/aiohttp_sse/shield.svg
+     :target: https://pyup.io/repos/github/aio-libs/aiohttp_sse/
+     :alt: Updates
+
 The EventSource interface is used to receive server-sent events. It connects
 to a server over HTTP and receives events in text/event-stream format without
 closing the connection. *aiohttp_sse* provides support for server-sent
