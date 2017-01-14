@@ -4,7 +4,7 @@ from aiohttp.protocol import Response as ResponseImpl
 from aiohttp.web import StreamResponse
 from aiohttp.web import HTTPMethodNotAllowed
 
-__version__ = '0.0.2'
+__version__ = '0.0.3a0'
 __all__ = ['EventSourceResponse']
 
 
