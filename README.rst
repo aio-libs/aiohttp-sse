@@ -3,8 +3,8 @@ aiohttp_sse
 .. image:: https://travis-ci.org/aio-libs/aiohttp_sse.svg?branch=master
     :target: https://travis-ci.org/aio-libs/aiohttp_sse
 
-.. image:: https://coveralls.io/repos/aio-libs/aiohttp_sse/badge.svg
-    :target: https://coveralls.io/r/aio-libs/aiohttp_sse
+.. image:: https://codecov.io/gh/aio-libs/aiohttp_sse/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/aio-libs/aiohttp_sse
 
 .. image:: https://pyup.io/repos/github/aio-libs/aiohttp_sse/shield.svg
      :target: https://pyup.io/repos/github/aio-libs/aiohttp_sse/
