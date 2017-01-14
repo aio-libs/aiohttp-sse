@@ -4,9 +4,12 @@ python:
     - 3.5
     - 3.6
 install:
-    - pip install coveralls -r requirements-dev.txt
-script: make cov
-after_success: coveralls
+    - pip install -r requirements-dev.txt
+    - pip install codecov
+script:
+    make cov
+after_success:
+    codecov
 env:
     matrix:
         - PYTHONASYNCIODEBUG=1
