@@ -1,217 +1,193 @@
 import asyncio
-import socket
-import unittest
+
 import aiohttp
+import pytest
 from aiohttp import web
 from aiohttp_sse import EventSourceResponse
 
 
-class TestSimple(unittest.TestCase):
+@pytest.mark.run_loop
+def test_func(loop, unused_port):
 
-    def setUp(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(None)
+    @asyncio.coroutine
+    def func(request):
+        resp = EventSourceResponse(headers={'X-SSE': 'aiohttp_sse'})
+        resp.start(request)
+        resp.send('foo')
+        resp.send('foo', event='bar')
+        resp.send('foo', event='bar', id='xyz')
+        resp.send('foo', event='bar', id='xyz', retry=1)
+        return resp
 
-    def tearDown(self):
-        self.loop.close()
+    app = web.Application(loop=loop)
+    app.router.add_route('GET', '/', func)
+    app.router.add_route('POST', '/', func)
 
-    def find_unused_port(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('127.0.0.1', 0))
-        port = s.getsockname()[1]
-        s.close()
-        return port
+    port = unused_port()
+    srv = yield from loop.create_server(
+        app.make_handler(), '127.0.0.1', port)
+    url = "http://127.0.0.1:{}/".format(port)
 
-    def test_func(self):
+    resp = yield from aiohttp.request('GET', url, loop=loop)
+    assert 200 == resp.status
 
-        @asyncio.coroutine
-        def func(request):
-            resp = EventSourceResponse(headers={'X-SSE': 'aiohttp_sse'})
-            resp.start(request)
-            resp.send('foo')
-            resp.send('foo', event='bar')
-            resp.send('foo', event='bar', id='xyz')
-            resp.send('foo', event='bar', id='xyz', retry=1)
-            return resp
+    # make sure that EventSourceResponse supports passing
+    # custom headers
+    assert resp.headers.get('X-SSE') == 'aiohttp_sse'
 
-        @asyncio.coroutine
-        def go():
-            app = web.Application(loop=self.loop)
-            app.router.add_route('GET', '/', func)
-            app.router.add_route('POST', '/', func)
+    # check streamed data
+    streamed_data = yield from resp.text()
+    expected = 'data: foo\r\n\r\n' \
+               'event: bar\r\ndata: foo\r\n\r\n' \
+               'id: xyz\r\nevent: bar\r\ndata: foo\r\n\r\n' \
+               'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
+    assert streamed_data == expected
 
-            port = self.find_unused_port()
-            srv = yield from self.loop.create_server(
-                app.make_handler(), '127.0.0.1', port)
-            url = "http://127.0.0.1:{}/".format(port)
+    # check that EventSourceResponse object works only
+    # with GET method
+    resp = yield from aiohttp.request('POST', url, loop=loop)
+    assert 405 == resp.status
+    srv.close()
 
-            resp = yield from aiohttp.request('GET', url, loop=self.loop)
-            self.assertEqual(200, resp.status)
 
-            # make sure that EventSourceResponse supports passing
-            # custom headers
-            self.assertEqual(resp.headers.get('X-SSE'), 'aiohttp_sse')
+@pytest.mark.run_loop
+def test_wait_stop_streaming(loop, unused_port):
 
-            # check streamed data
-            streamed_data = yield from resp.text()
-            expected = 'data: foo\r\n\r\n' \
-                       'event: bar\r\ndata: foo\r\n\r\n' \
-                       'id: xyz\r\nevent: bar\r\ndata: foo\r\n\r\n' \
-                       'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
-            self.assertEqual(streamed_data, expected)
+    @asyncio.coroutine
+    def func(request):
+        app = request.app
+        resp = EventSourceResponse()
+        resp.start(request)
+        resp.send('foo', event='bar', id='xyz', retry=1)
+        app['socket'].append(resp)
+        yield from resp.wait()
+        return resp
 
-            # check that EventSourceResponse object works only
-            # with GET method
-            resp = yield from aiohttp.request('POST', url, loop=self.loop)
-            self.assertEqual(405, resp.status)
+    app = web.Application(loop=loop)
+    app['socket'] = []
+    app.router.add_route('GET', '/', func)
 
-            srv.close()
-            self.addCleanup(srv.close)
+    port = unused_port()
+    srv = yield from loop.create_server(
+        app.make_handler(), '127.0.0.1', port)
+    url = "http://127.0.0.1:{}/".format(port)
 
-        self.loop.run_until_complete(go())
+    resp_task = asyncio.async(
+        aiohttp.request('GET', url, loop=loop),
+        loop=loop)
 
-    def test_wait_stop_streaming(self):
+    yield from asyncio.sleep(0.1, loop=loop)
+    esourse = app['socket'][0]
+    esourse.stop_streaming()
+    resp = yield from resp_task
 
-        @asyncio.coroutine
-        def func(request):
-            app = request.app
-            resp = EventSourceResponse()
-            resp.start(request)
-            resp.send('foo', event='bar', id='xyz', retry=1)
-            app['socket'].append(resp)
-            yield from resp.wait()
-            return resp
+    assert 200 == resp.status
+    streamed_data = yield from resp.text()
 
-        @asyncio.coroutine
-        def go():
-            app = web.Application(loop=self.loop)
-            app['socket'] = []
-            app.router.add_route('GET', '/', func)
+    expected = 'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
+    assert streamed_data == expected
 
-            port = self.find_unused_port()
-            srv = yield from self.loop.create_server(
-                app.make_handler(), '127.0.0.1', port)
-            url = "http://127.0.0.1:{}/".format(port)
+    srv.close()
 
-            resp_task = asyncio.async(
-                aiohttp.request('GET', url, loop=self.loop),
-                loop=self.loop)
 
-            yield from asyncio.sleep(0.1, loop=self.loop)
-            esourse = app['socket'][0]
-            esourse.stop_streaming()
-            resp = yield from resp_task
+@pytest.mark.run_loop
+def test_retry(loop, unused_port):
 
-            self.assertEqual(200, resp.status)
-            streamed_data = yield from resp.text()
+    @asyncio.coroutine
+    def func(request):
+        resp = EventSourceResponse()
+        resp.start(request)
+        with pytest.raises(TypeError):
+            resp.send('foo', retry='one')
+        resp.send('foo', retry=1)
+        return resp
 
-            expected = 'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
-            self.assertEqual(streamed_data, expected)
+    app = web.Application(loop=loop)
+    app.router.add_route('GET', '/', func)
 
-            srv.close()
-            self.addCleanup(srv.close)
+    port = unused_port()
+    srv = yield from loop.create_server(
+        app.make_handler(), '127.0.0.1', port)
+    url = "http://127.0.0.1:{}/".format(port)
 
-        self.loop.run_until_complete(go())
+    resp = yield from aiohttp.request('GET', url, loop=loop)
+    assert 200 == resp.status
 
-    def test_retry(self):
+    # check streamed data
+    streamed_data = yield from resp.text()
+    expected = 'data: foo\r\nretry: 1\r\n\r\n'
+    assert streamed_data == expected
 
-        @asyncio.coroutine
-        def func(request):
-            resp = EventSourceResponse()
-            resp.start(request)
-            with self.assertRaises(TypeError):
-                resp.send('foo', retry='one')
-            resp.send('foo', retry=1)
-            return resp
+    srv.close()
 
-        @asyncio.coroutine
-        def go():
-            app = web.Application(loop=self.loop)
-            app.router.add_route('GET', '/', func)
 
-            port = self.find_unused_port()
-            srv = yield from self.loop.create_server(
-                app.make_handler(), '127.0.0.1', port)
-            url = "http://127.0.0.1:{}/".format(port)
+def test_wait_stop_streaming_errors(loop):
+    response = EventSourceResponse()
+    with pytest.raises(RuntimeError) as ctx:
+        response.wait()
+    assert str(ctx.value) == 'Response is not started'
 
-            resp = yield from aiohttp.request('GET', url, loop=self.loop)
-            self.assertEqual(200, resp.status)
+    with pytest.raises(RuntimeError) as ctx:
+        response.stop_streaming()
+    assert str(ctx.value) == 'Response is not started'
 
-            # check streamed data
-            streamed_data = yield from resp.text()
-            expected = 'data: foo\r\nretry: 1\r\n\r\n'
-            self.assertEqual(streamed_data, expected)
 
-            srv.close()
-            self.addCleanup(srv.close)
+def test_compression_not_implemented():
+    response = EventSourceResponse()
+    with pytest.raises(NotImplementedError):
+        response.enable_compression()
 
-        self.loop.run_until_complete(go())
 
-    def test_wait_stop_streaming_errors(self):
-        response = EventSourceResponse()
-        with self.assertRaisesRegex(RuntimeError, 'Response is not started'):
-            response.wait()
+def test_ping_property(loop):
+    response = EventSourceResponse()
+    default = response.DEFAULT_PING_INTERVAL
+    assert response.ping_interval == default
+    response.ping_interval = 25
+    assert response.ping_interval == 25
+    with pytest.raises(TypeError) as ctx:
+        response.ping_interval = 'ten'
 
-        with self.assertRaisesRegex(RuntimeError, 'Response is not started'):
-            response.stop_streaming()
+    assert str(ctx.value) == 'ping interval must be int'
 
-    def test_compression_not_implemented(self):
-        response = EventSourceResponse()
-        with self.assertRaises(NotImplementedError):
-            response.enable_compression()
+    with pytest.raises(ValueError):
+        response.ping_interval = -42
 
-    def test_ping_property(self):
-        response = EventSourceResponse()
-        default = response.DEFAULT_PING_INTERVAL
-        self.assertEqual(response.ping_interval, default)
-        response.ping_interval = 25
-        self.assertEqual(response.ping_interval, 25)
-        with self.assertRaisesRegex(TypeError, 'ping interval'):
-            response.ping_interval = 'ten'
 
-        with self.assertRaises(ValueError):
-            response.ping_interval = -42
+@pytest.mark.run_loop
+def test_ping(loop, unused_port):
 
-    def test_ping(self):
+    @asyncio.coroutine
+    def func(request):
+        app = request.app
+        resp = EventSourceResponse()
+        resp.ping_interval = 1
+        resp.start(request)
+        resp.send('foo')
+        app['socket'].append(resp)
+        yield from resp.wait()
+        return resp
 
-        @asyncio.coroutine
-        def func(request):
-            app = request.app
-            resp = EventSourceResponse()
-            resp.ping_interval = 1
-            resp.start(request)
-            resp.send('foo')
-            app['socket'].append(resp)
-            yield from resp.wait()
-            return resp
+    app = web.Application(loop=loop)
+    app['socket'] = []
+    app.router.add_route('GET', '/', func)
 
-        @asyncio.coroutine
-        def go():
-            app = web.Application(loop=self.loop)
-            app['socket'] = []
-            app.router.add_route('GET', '/', func)
+    port = unused_port()
+    srv = yield from loop.create_server(
+        app.make_handler(), '127.0.0.1', port)
+    url = "http://127.0.0.1:{}/".format(port)
 
-            port = self.find_unused_port()
-            srv = yield from self.loop.create_server(
-                app.make_handler(), '127.0.0.1', port)
-            url = "http://127.0.0.1:{}/".format(port)
+    resp_task = asyncio.async(
+        aiohttp.request('GET', url, loop=loop),
+        loop=loop)
 
-            resp_task = asyncio.async(
-                aiohttp.request('GET', url, loop=self.loop),
-                loop=self.loop)
+    yield from asyncio.sleep(1.15, loop=loop)
+    esourse = app['socket'][0]
+    esourse.stop_streaming()
+    resp = yield from resp_task
 
-            yield from asyncio.sleep(1.15, loop=self.loop)
-            esourse = app['socket'][0]
-            esourse.stop_streaming()
-            resp = yield from resp_task
+    assert 200 == resp.status
+    streamed_data = yield from resp.text()
 
-            self.assertEqual(200, resp.status)
-            streamed_data = yield from resp.text()
-
-            expected = 'data: foo\r\n\r\n' + ': ping\r\n\r\n'
-            self.assertEqual(streamed_data, expected)
-
-            srv.close()
-            self.addCleanup(srv.close)
-
-        self.loop.run_until_complete(go())
+    expected = 'data: foo\r\n\r\n' + ': ping\r\n\r\n'
+    assert streamed_data == expected
+    srv.close()
