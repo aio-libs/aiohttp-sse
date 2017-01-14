@@ -10,10 +10,6 @@ script:
     make cov
 after_success:
     codecov
-env:
-    matrix:
-        - PYTHONASYNCIODEBUG=1
-        - PYTHONASYNCIODEBUG=0
 deploy:
     provider: pypi
     distributions: sdist bdist_wheel
