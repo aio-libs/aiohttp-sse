@@ -5,12 +5,18 @@ import socket
 import pytest
 
 
+@pytest.fixture(scope="session", params=[True, False],
+                ids=['debug:true', 'debug:false'])
+def debug(request):
+    return request.param
+
+
 @pytest.yield_fixture
-def loop(request):
+def loop(request, debug):
     old_loop = asyncio.get_event_loop()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)
-
+    loop.set_debug(debug)
     yield loop
 
     if not loop._closed:
