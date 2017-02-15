@@ -107,7 +107,7 @@ Requirements
 
 * Python_ 3.3+
 * asyncio_ or Python_ 3.4+
-* aiohttp_
+* aiohttp_ 1.1.0+
 
 
 License
