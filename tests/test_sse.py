@@ -7,12 +7,16 @@ from aiohttp_sse import EventSourceResponse
 
 
 @pytest.mark.asyncio(forbid_global_loop=True)
-def test_func(event_loop, unused_tcp_port):
+@pytest.mark.parametrize('with_deprecated_start', (False, True))
+def test_func(event_loop, unused_tcp_port, with_deprecated_start):
 
     @asyncio.coroutine
     def func(request):
         resp = EventSourceResponse(headers={'X-SSE': 'aiohttp_sse'})
-        resp.start(request)
+        if with_deprecated_start:
+            resp.start(request)
+        else:
+            yield from resp.prepare(request)
         resp.send('foo')
         resp.send('foo', event='bar')
         resp.send('foo', event='bar', id='xyz')
@@ -62,7 +66,7 @@ def test_wait_stop_streaming(event_loop, unused_tcp_port):
     def func(request):
         app = request.app
         resp = EventSourceResponse()
-        resp.start(request)
+        yield from resp.prepare(request)
         resp.send('foo', event='bar', id='xyz', retry=1)
         app['socket'].append(resp)
         yield from resp.wait()
@@ -84,6 +88,7 @@ def test_wait_stop_streaming(event_loop, unused_tcp_port):
     yield from asyncio.sleep(0.1, loop=event_loop)
     esourse = app['socket'][0]
     esourse.stop_streaming()
+    yield from esourse.wait()
     resp = yield from resp_task
 
     assert 200 == resp.status
@@ -103,7 +108,7 @@ def test_retry(event_loop, unused_tcp_port):
     @asyncio.coroutine
     def func(request):
         resp = EventSourceResponse()
-        resp.start(request)
+        yield from resp.prepare(request)
         with pytest.raises(TypeError):
             resp.send('foo', retry='one')
         resp.send('foo', retry=1)
@@ -132,10 +137,11 @@ def test_retry(event_loop, unused_tcp_port):
     yield from handler.shutdown(0)
 
 
+@pytest.mark.asyncio(forbid_global_loop=True)
 def test_wait_stop_streaming_errors():
     response = EventSourceResponse()
     with pytest.raises(RuntimeError) as ctx:
-        response.wait()
+        yield from response.wait()
     assert str(ctx.value) == 'Response is not started'
 
     with pytest.raises(RuntimeError) as ctx:
@@ -172,7 +178,7 @@ def test_ping(event_loop, unused_tcp_port):
         app = request.app
         resp = EventSourceResponse()
         resp.ping_interval = 1
-        resp.start(request)
+        yield from resp.prepare(request)
         resp.send('foo')
         app['socket'].append(resp)
         yield from resp.wait()
@@ -194,6 +200,7 @@ def test_ping(event_loop, unused_tcp_port):
     yield from asyncio.sleep(1.15, loop=event_loop)
     esourse = app['socket'][0]
     esourse.stop_streaming()
+    yield from esourse.wait()
     resp = yield from resp_task
 
     assert 200 == resp.status
