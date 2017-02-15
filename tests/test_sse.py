@@ -4,6 +4,7 @@ import aiohttp
 import pytest
 from aiohttp import web
 from aiohttp_sse import EventSourceResponse
+from yarl import URL
 
 
 @pytest.mark.asyncio(forbid_global_loop=True)
@@ -28,7 +29,7 @@ def test_func(event_loop, unused_tcp_port):
     handler = app.make_handler()
     srv = yield from event_loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
-    url = "http://127.0.0.1:{}/".format(unused_tcp_port)
+    url = URL("http://127.0.0.1:{}/".format(unused_tcp_port))
 
     resp = yield from aiohttp.request('GET', url, loop=event_loop)
     assert 200 == resp.status
@@ -75,7 +76,7 @@ def test_wait_stop_streaming(event_loop, unused_tcp_port):
     handler = app.make_handler()
     srv = yield from loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
-    url = "http://127.0.0.1:{}/".format(unused_tcp_port)
+    url = URL("http://127.0.0.1:{}/".format(unused_tcp_port))
 
     resp_task = asyncio.async(
         aiohttp.request('GET', url, loop=event_loop),
@@ -117,7 +118,7 @@ def test_retry(event_loop, unused_tcp_port):
     handler = app.make_handler()
     srv = yield from event_loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
-    url = "http://127.0.0.1:{}/".format(unused_tcp_port)
+    url = URL("http://127.0.0.1:{}/".format(unused_tcp_port))
 
     resp = yield from aiohttp.request('GET', url, loop=event_loop)
     assert 200 == resp.status
@@ -185,7 +186,7 @@ def test_ping(event_loop, unused_tcp_port):
     handler = app.make_handler()
     srv = yield from event_loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
-    url = "http://127.0.0.1:{}/".format(unused_tcp_port)
+    url = URL("http://127.0.0.1:{}/".format(unused_tcp_port))
 
     resp_task = asyncio.async(
         aiohttp.request('GET', url, loop=event_loop),

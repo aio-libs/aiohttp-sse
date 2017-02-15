@@ -28,7 +28,7 @@ def read_version():
             raise RuntimeError(msg)
 
 
-install_requires = ['aiohttp>=0.14']
+install_requires = ['aiohttp>=1.1.0']
 
 
 setup(name='aiohttp-sse',

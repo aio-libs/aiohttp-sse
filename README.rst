@@ -105,9 +105,8 @@ EventSource Protocol
 Requirements
 ------------
 
-* Python_ 3.3+
-* asyncio_ or Python_ 3.4+
-* aiohttp_
+* Python_ 3.4+
+* aiohttp_ 1.1.0+
 
 
 License
