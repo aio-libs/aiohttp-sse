@@ -3,20 +3,28 @@ import asyncio
 import aiohttp
 import pytest
 from aiohttp import web
-from aiohttp_sse import EventSourceResponse
+from aiohttp_sse import EventSourceResponse, sse_response
 
 
 @pytest.mark.asyncio(forbid_global_loop=True)
 @pytest.mark.parametrize('with_deprecated_start', (False, True))
-def test_func(event_loop, unused_tcp_port, with_deprecated_start):
+@pytest.mark.parametrize('with_sse_response', (False, True),
+                         ids=('without_sse_response',
+                              'with_sse_response'))
+def test_func(event_loop, unused_tcp_port, with_deprecated_start,
+              with_sse_response):
 
     @asyncio.coroutine
     def func(request):
-        resp = EventSourceResponse(headers={'X-SSE': 'aiohttp_sse'})
-        if with_deprecated_start:
-            resp.start(request)
+        if with_sse_response:
+            resp = yield from sse_response(request,
+                                           headers={'X-SSE': 'aiohttp_sse'})
         else:
-            yield from resp.prepare(request)
+            resp = EventSourceResponse(headers={'X-SSE': 'aiohttp_sse'})
+            if with_deprecated_start:
+                resp.start(request)
+            else:
+                yield from resp.prepare(request)
         resp.send('foo')
         resp.send('foo', event='bar')
         resp.send('foo', event='bar', id='xyz')
