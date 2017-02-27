@@ -34,25 +34,24 @@ Example
 .. code:: python
 
     import asyncio
-    from aiohttp.web import Application, Response
+    from aiohttp import web
     from aiohttp_sse import EventSourceResponse
 
 
-    @asyncio.coroutine
-    def hello(request):
+    async def hello(request):
+        loop = asyncio.get_event_loop()
         resp = EventSourceResponse()
-        resp.start(request)
+        await resp.prepare(request)
         for i in range(0, 100):
             print('foo')
-            yield from asyncio.sleep(1, loop=loop)
+            await asyncio.sleep(1, loop=loop)
             resp.send('foo {}'.format(i))
 
         resp.stop_streaming()
         return resp
 
 
-    @asyncio.coroutine
-    def index(request):
+    async def index(request):
         d = b"""
             <html>
             <head>
@@ -75,24 +74,11 @@ Example
         return Response(body=d)
 
 
-    @asyncio.coroutine
-    def init(loop):
-        app = Application(loop=loop)
-        app.router.add_route('GET', '/hello', hello)
-        app.router.add_route('GET', '/index', index)
-
-        handler = app.make_handler()
-        srv = yield from loop.create_server(handler, '127.0.0.1', 8080)
-        print("Server started at http://127.0.0.1:8080")
-        return srv, handler
-
-
     loop = asyncio.get_event_loop()
-    srv, handler = loop.run_until_complete(init(loop))
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        loop.run_until_complete(handler.finish_connections())
+    app = web.Application(loop=loop)
+    app.router.add_route('GET', '/hello', hello)
+    app.router.add_route('GET', '/index', index)
+    web.run_app(app, host='127.0.0.1', port=8080)
 
 
 EventSource Protocol

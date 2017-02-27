@@ -1,6 +1,7 @@
 import asyncio
+import contextlib
 import io
-from aiohttp.protocol import Response as ResponseImpl
+
 from aiohttp.web import StreamResponse
 from aiohttp.web import HTTPMethodNotAllowed
 
@@ -12,12 +13,11 @@ class EventSourceResponse(StreamResponse):
     """This object could be used as regular aiohttp response for
     streaming data to client, usually browser with EventSource::
 
-        @asyncio.coroutine
-        def hello(request):
+        async def hello(request):
             # create response object
             resp = EventSourceResponse()
             # prepare and send headers
-            resp.start(request)
+            await resp.prepare(request)
             # stream data
             resp.send('foo')
             return resp
@@ -37,11 +37,19 @@ class EventSourceResponse(StreamResponse):
         self.headers['Connection'] = 'keep-alive'
 
         self._loop = None
-        self._finish_fut = None
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
 
     def start(self, request):
+        if request.method != 'GET':
+            raise HTTPMethodNotAllowed(request.method, ['GET'])
+
+        resp_impl = super().start(request)
+        self._prepare_sse(request.app.loop)
+        return resp_impl
+
+    @asyncio.coroutine
+    def prepare(self, request):
         """Prepare for streaming and send HTTP headers.
 
         :param request: regular aiohttp.web.Request.
@@ -49,35 +57,19 @@ class EventSourceResponse(StreamResponse):
         if request.method != 'GET':
             raise HTTPMethodNotAllowed(request.method, ['GET'])
 
-        self._loop = request.app.loop
-        self._finish_fut = asyncio.Future(loop=self._loop)
-        self._finish_fut.add_done_callback(self._cancel_ping)
-
         resp_impl = self._start_pre_check(request)
         if resp_impl is not None:
             return resp_impl
-        self._req = request
+        resp_impl = yield from super().prepare(request)
+        self._prepare_sse(request.app.loop)
+        return resp_impl
 
-        self._keep_alive = True
-        resp_impl = self._resp_impl = ResponseImpl(
-            request._writer,
-            self._status,
-            request.version,
-            close=not self._keep_alive,
-            reason=self._reason)
-
+    def _prepare_sse(self, loop):
+        self._loop = loop
+        self._ping_task = loop.create_task(self._ping())
         # explicitly enabling chunked encoding, since content length
         # usually not known beforehand.
-        self._chunked = True
-        resp_impl.enable_chunked_encoding()
-
-        headers = self.headers.items()
-        for key, val in headers:
-            resp_impl.add_header(key, val)
-
-        resp_impl.send_headers()
-        self._ping_task = asyncio.Task(self._ping(), loop=self._loop)
-        return resp_impl
+        self._resp_impl.enable_chunked_encoding()
 
     def send(self, data, id=None, event=None, retry=None):
         """Send data using EventSource protocol
@@ -112,22 +104,24 @@ class EventSourceResponse(StreamResponse):
         buffer.write(b'\r\n')
         self.write(buffer.getvalue())
 
+    @asyncio.coroutine
     def wait(self):
         """EventSourceResponse object is used for streaming data to the client,
         this method returns future, so we can wain until connection will
         be closed or other task explicitly call ``stop_streaming`` method.
         """
-        if not self._finish_fut:
+        if self._ping_task is None:
             raise RuntimeError('Response is not started')
-        return self._finish_fut
+        with contextlib.suppress(asyncio.CancelledError):
+            yield from self._ping_task
 
     def stop_streaming(self):
         """Used in conjunction with ``wait`` could be called from other task
         to notify client that server no longer wants to stream anything.
         """
-        if not self._finish_fut:
+        if self._ping_task is None:
             raise RuntimeError('Response is not started')
-        self._finish_fut.set_result(None)
+        self._ping_task.cancel()
 
     def enable_compression(self, force=False):
         raise NotImplementedError
@@ -150,12 +144,6 @@ class EventSourceResponse(StreamResponse):
             raise ValueError("ping interval must be greater then 0")
 
         self._ping_interval = value
-
-    def _cancel_ping(self, fut):
-        # task with connection was canceled or user called ``stop_streaming``
-        # method, this callback will cancel ping task so we will not have
-        # pending task related errors, like trying to write into closed socket.
-        self._ping_task.cancel()
 
     @asyncio.coroutine
     def _ping(self):
