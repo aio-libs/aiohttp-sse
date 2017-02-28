@@ -1,7 +1,28 @@
+import asyncio
+
 import pytest
+import aiohttp
 
 
 @pytest.fixture(scope="session", params=[True, False],
                 ids=['debug:true', 'debug:false'])
 def debug(request):
     return request.param
+
+
+@pytest.fixture
+def loop(event_loop, debug):
+    event_loop.set_debug(debug)
+    return event_loop
+
+
+@pytest.yield_fixture
+def session(loop):
+
+    @asyncio.coroutine
+    def create_session(loop):
+        return aiohttp.ClientSession(loop=loop)
+
+    session = loop.run_until_complete(create_session(loop))
+    yield session
+    loop.run_until_complete(session.close())
