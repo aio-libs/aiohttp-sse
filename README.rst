@@ -35,19 +35,66 @@ Example
 
     import asyncio
     from aiohttp import web
-    from aiohttp_sse import EventSourceResponse
+    from aiohttp_sse import sse_response
 
 
     async def hello(request):
         loop = asyncio.get_event_loop()
-        resp = EventSourceResponse()
-        await resp.prepare(request)
+        resp = await sse_response(request)
         for i in range(0, 100):
             print('foo')
             await asyncio.sleep(1, loop=loop)
             resp.send('foo {}'.format(i))
 
         resp.stop_streaming()
+        return resp
+
+
+    async def index(request):
+        d = b"""
+            <html>
+            <head>
+                <script type="text/javascript"
+                    src="http://code.jquery.com/jquery.min.js"></script>
+                <script type="text/javascript">
+                var evtSource = new EventSource("/hello");
+                evtSource.onmessage = function(e) {
+                 $('#response').html(e.data);
+                }
+
+                </script>
+            </head>
+            <body>
+                <h1>Response from server:</h1>
+                <div id="response"></div>
+            </body>
+        </html>
+        """
+        return Response(body=d)
+
+
+    loop = asyncio.get_event_loop()
+    app = web.Application(loop=loop)
+    app.router.add_route('GET', '/hello', hello)
+    app.router.add_route('GET', '/index', index)
+    web.run_app(app, host='127.0.0.1', port=8080)
+
+Same example with asynchronous context manager interface (python3.5+)
+
+.. code:: python
+
+    import asyncio
+    from aiohttp.web import Application, Response
+    from aiohttp_sse import sse_response
+
+
+    async def hello(request):
+        resp = await sse_response(request)
+        async with resp:
+            for i in range(0, 100):
+                print('foo')
+                await asyncio.sleep(1, loop=loop)
+                resp.send('foo {}'.format(i))
         return resp
 
 

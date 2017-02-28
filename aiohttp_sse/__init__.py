@@ -6,7 +6,7 @@ from aiohttp.web import StreamResponse
 from aiohttp.web import HTTPMethodNotAllowed
 
 __version__ = '0.0.3a0'
-__all__ = ['EventSourceResponse']
+__all__ = ['EventSourceResponse', 'sse_response']
 
 
 class EventSourceResponse(StreamResponse):
@@ -153,3 +153,20 @@ class EventSourceResponse(StreamResponse):
         while True:
             yield from asyncio.sleep(self._ping_interval, loop=self._loop)
             self.write(b': ping\r\n\r\n')
+
+    @asyncio.coroutine
+    def __aenter__(self):
+        return self
+
+    @asyncio.coroutine
+    def __aexit__(self, *args):
+        self.stop_streaming()
+        yield from self.wait()
+        return
+
+
+@asyncio.coroutine
+def sse_response(request, *, status=200, reason=None, headers=None):
+    sse = EventSourceResponse(status=status, reason=reason, headers=headers)
+    yield from sse.prepare(request)
+    return sse
