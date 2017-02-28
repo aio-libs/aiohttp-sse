@@ -1,6 +1,5 @@
 import asyncio
 
-import aiohttp
 import pytest
 from aiohttp import web
 from aiohttp_sse import EventSourceResponse, sse_response
@@ -11,8 +10,8 @@ from aiohttp_sse import EventSourceResponse, sse_response
 @pytest.mark.parametrize('with_sse_response', (False, True),
                          ids=('without_sse_response',
                               'with_sse_response'))
-def test_func(event_loop, unused_tcp_port, with_deprecated_start,
-              with_sse_response):
+def test_func(loop, unused_tcp_port, with_deprecated_start,
+              with_sse_response, session):
 
     @asyncio.coroutine
     def func(request):
@@ -33,16 +32,16 @@ def test_func(event_loop, unused_tcp_port, with_deprecated_start,
         yield from resp.wait()
         return resp
 
-    app = web.Application(loop=event_loop)
+    app = web.Application(loop=loop)
     app.router.add_route('GET', '/', func)
     app.router.add_route('POST', '/', func)
 
     handler = app.make_handler()
-    srv = yield from event_loop.create_server(
+    srv = yield from loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
-    resp = yield from aiohttp.request('GET', url, loop=event_loop)
+    resp = yield from session.request('GET', url)
     assert 200 == resp.status
 
     # make sure that EventSourceResponse supports passing
@@ -59,16 +58,16 @@ def test_func(event_loop, unused_tcp_port, with_deprecated_start,
 
     # check that EventSourceResponse object works only
     # with GET method
-    resp = yield from aiohttp.request('POST', url, loop=event_loop)
+    resp = yield from session.request('POST', url)
     assert 405 == resp.status
+    resp.close()
     srv.close()
     yield from srv.wait_closed()
     yield from handler.shutdown(0)
 
 
 @pytest.mark.asyncio(forbid_global_loop=True)
-def test_wait_stop_streaming(event_loop, unused_tcp_port):
-    loop = event_loop
+def test_wait_stop_streaming(loop, unused_tcp_port, session):
 
     @asyncio.coroutine
     def func(request):
@@ -80,7 +79,7 @@ def test_wait_stop_streaming(event_loop, unused_tcp_port):
         yield from resp.wait()
         return resp
 
-    app = web.Application(loop=event_loop)
+    app = web.Application(loop=loop)
     app['socket'] = []
     app.router.add_route('GET', '/', func)
 
@@ -89,11 +88,9 @@ def test_wait_stop_streaming(event_loop, unused_tcp_port):
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
-    resp_task = asyncio.async(
-        aiohttp.request('GET', url, loop=event_loop),
-        loop=event_loop)
+    resp_task = asyncio.async(session.request('GET', url), loop=loop)
 
-    yield from asyncio.sleep(0.1, loop=event_loop)
+    yield from asyncio.sleep(0.1, loop=loop)
     esourse = app['socket'][0]
     esourse.stop_streaming()
     yield from esourse.wait()
@@ -111,7 +108,7 @@ def test_wait_stop_streaming(event_loop, unused_tcp_port):
 
 
 @pytest.mark.asyncio(forbid_global_loop=True)
-def test_retry(event_loop, unused_tcp_port):
+def test_retry(loop, unused_tcp_port, session):
 
     @asyncio.coroutine
     def func(request):
@@ -124,15 +121,15 @@ def test_retry(event_loop, unused_tcp_port):
         yield from resp.wait()
         return resp
 
-    app = web.Application(loop=event_loop)
+    app = web.Application(loop=loop)
     app.router.add_route('GET', '/', func)
 
     handler = app.make_handler()
-    srv = yield from event_loop.create_server(
+    srv = yield from loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
-    resp = yield from aiohttp.request('GET', url, loop=event_loop)
+    resp = yield from session.request('GET', url)
     assert 200 == resp.status
 
     # check streamed data
@@ -163,7 +160,7 @@ def test_compression_not_implemented():
         response.enable_compression()
 
 
-def test_ping_property(event_loop):
+def test_ping_property(loop):
     response = EventSourceResponse()
     default = response.DEFAULT_PING_INTERVAL
     assert response.ping_interval == default
@@ -179,7 +176,7 @@ def test_ping_property(event_loop):
 
 
 @pytest.mark.asyncio(forbid_global_loop=True)
-def test_ping(event_loop, unused_tcp_port):
+def test_ping(loop, unused_tcp_port, session):
 
     @asyncio.coroutine
     def func(request):
@@ -192,20 +189,18 @@ def test_ping(event_loop, unused_tcp_port):
         yield from resp.wait()
         return resp
 
-    app = web.Application(loop=event_loop)
+    app = web.Application(loop=loop)
     app['socket'] = []
     app.router.add_route('GET', '/', func)
 
     handler = app.make_handler()
-    srv = yield from event_loop.create_server(
+    srv = yield from loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
-    resp_task = asyncio.async(
-        aiohttp.request('GET', url, loop=event_loop),
-        loop=event_loop)
+    resp_task = asyncio.async(session.request('GET', url), loop=loop)
 
-    yield from asyncio.sleep(1.15, loop=event_loop)
+    yield from asyncio.sleep(1.15, loop=loop)
     esourse = app['socket'][0]
     esourse.stop_streaming()
     yield from esourse.wait()
