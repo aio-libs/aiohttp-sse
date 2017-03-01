@@ -16,7 +16,7 @@ def loop(event_loop, debug):
     return event_loop
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def session(loop):
 
     @asyncio.coroutine
