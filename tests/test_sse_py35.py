@@ -2,7 +2,6 @@ import sys
 
 import pytest
 
-import aiohttp
 from aiohttp import web
 from aiohttp_sse import sse_response
 
@@ -13,7 +12,7 @@ pytestmark = pytest.mark.skipif(sys.version_info < (3, 5),
 
 
 @pytest.mark.asyncio(forbid_global_loop=True)
-async def test_context_manager(event_loop, unused_tcp_port):
+async def test_context_manager(loop, unused_tcp_port, session):
 
     async def func(request):
         sse = await sse_response(request, headers={'X-SSE': 'aiohttp_sse'})
@@ -24,16 +23,16 @@ async def test_context_manager(event_loop, unused_tcp_port):
             sse.send('foo', event='bar', id='xyz', retry=1)
         return sse
 
-    app = web.Application(loop=event_loop)
+    app = web.Application(loop=loop)
     app.router.add_route('GET', '/', func)
     app.router.add_route('POST', '/', func)
 
     handler = app.make_handler()
-    srv = await event_loop.create_server(
+    srv = await loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
-    resp = await aiohttp.request('GET', url, loop=event_loop)
+    resp = await session.request('GET', url)
     assert resp.status == 200
 
     # make sure that EventSourceResponse supports passing
