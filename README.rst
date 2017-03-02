@@ -1,18 +1,18 @@
-aiohttp_sse
+aiohttp-sse
 ===========
-.. image:: https://travis-ci.org/aio-libs/aiohttp_sse.svg?branch=master
-    :target: https://travis-ci.org/aio-libs/aiohttp_sse
+.. image:: https://travis-ci.org/aio-libs/aiohttp-sse.svg?branch=master
+    :target: https://travis-ci.org/aio-libs/aiohttp-sse
 
-.. image:: https://codecov.io/gh/aio-libs/aiohttp_sse/branch/master/graph/badge.svg
-    :target: https://codecov.io/gh/aio-libs/aiohttp_sse
+.. image:: https://codecov.io/gh/aio-libs/aiohttp-sse/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/aio-libs/aiohttp-sse
 
-.. image:: https://pyup.io/repos/github/aio-libs/aiohttp_sse/shield.svg
-     :target: https://pyup.io/repos/github/aio-libs/aiohttp_sse/
+.. image:: https://pyup.io/repos/github/aio-libs/aiohttp-sse/shield.svg
+     :target: https://pyup.io/repos/github/aio-libs/aiohttp-sse/
      :alt: Updates
 
 The *EventSource** interface is used to receive server-sent events. It connects
 to a server over HTTP and receives events in text/event-stream format without
-closing the connection. *aiohttp_sse* provides support for server-sent
+closing the connection. *aiohttp-sse* provides support for server-sent
 events for aiohttp_.
 
 
@@ -145,7 +145,7 @@ Requirements
 License
 -------
 
-The *aiohttp_sse* is offered under Apache 2.0 license.
+The *aiohttp-sse* is offered under Apache 2.0 license.
 
 .. _Python: https://www.python.org
 .. _asyncio: http://docs.python.org/3.4/library/asyncio.html
