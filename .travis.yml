@@ -23,6 +23,6 @@ deploy:
         secure: V/UjH36QQcJyLqIzNb7/R1Y4nLJi1O2nvp/xf3O/myiO722QD6SZQ7u5CoWcicyQBhqodu/oXA2XeJk1LAorhKnk15CkiWhO7wFAWuYc4rQA7qgjApfercGPqcSL1K2RmGeP/UWpLR+La5o4/9zCmfG83Z007rmii9a6dbdJU7c=
     on:
         tags: true
-        repo: aio-libs/aiohttp_sse
+        repo: aio-libs/aiohttp-sse
         all_branches: true
         python: 3.5

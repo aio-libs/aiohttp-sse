@@ -4,20 +4,20 @@ Contributing
 Running Tests
 -------------
 
-.. _GitHub: https://github.com/aio-libs/aiohttp_sse
+.. _GitHub: https://github.com/aio-libs/aiohttp-sse
 
 Thanks for your interest in contributing to ``aiohttp-sse``, there are multiple
 ways and places you can contribute.
 
 Fist of all just clone repository::
 
-    $ git clone git@github.com:aio-libs/aiohttp_sse.git
+    $ git clone git@github.com:aio-libs/aiohttp-sse.git
 
 Create virtualenv with python 3.5 or 3.6. For example
 using *virtualenvwrapper* commands could look like::
 
-   $ cd aiohttp_sse
-   $ mkvirtualenv --python=`which python3.5` aiohttp_sse
+   $ cd aiohttp-sse
+   $ mkvirtualenv --python=`which python3.5` aiohttp-sse
 
 
 After that please install libraries required for development::
