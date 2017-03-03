@@ -1,12 +1,11 @@
 import asyncio
 import json
-from aiohttp import web
 from aiohttp.web import Application, Response
-from aiohttp_sse import sse_response
+from aiohttp_sse import EventSourceResponse
 
 
 def chat(request):
-    d = """
+    d = b"""
     <html>
       <head>
         <title>Tiny Chat</title>
@@ -75,40 +74,57 @@ def chat(request):
     </html>
 
     """
-    resp = Response(text=d, content_type='text/html')
+    resp = Response(body=d)
 
     return resp
 
 
-async def message(request):
+@asyncio.coroutine
+def message(request):
     app = request.app
-    data = await request.post()
+    data = yield from request.post()
 
-    for queue in app['channels']:
+    for es in app['sockets']:
         payload = json.dumps(dict(data))
-        await queue.put(payload)
+        es.send(payload)
     return Response()
 
 
-async def subscribe(request):
-    response = await sse_response(request)
-    async with response:
-        app = request.app
-        queue = asyncio.Queue()
-        print('Someone joined.')
-        request.app['channels'].add(queue)
-        while True:
-            payload = await queue.get()
-            response.send(payload)
-            queue.task_done()
+@asyncio.coroutine
+def subscribe(request):
+    response = EventSourceResponse()
+    response.start(request)
+    app = request.app
+
+    print('Someone joined.')
+    request.app['sockets'].add(response)
+    try:
+        yield from response.wait()
+    except Exception as e:
+        app['sockets'].remove(response)
+        raise e
+
     return response
 
 
-loop = asyncio.get_event_loop()
-app = Application(loop=loop)
-app['channels'] = set()
+@asyncio.coroutine
+def init(loop):
+    app = Application(loop=loop)
+    app['sockets'] = set()
 
-app.router.add_route('GET', '/chat', chat)
-app.router.add_route('POST', '/everyone', message)
-app.router.add_route('GET', '/subscribe', subscribe)
-web.run_app(app, host='127.0.0.1', port=8080)
+    app.router.add_route('GET', '/chat', chat)
+    app.router.add_route('POST', '/everyone', message)
+    app.router.add_route('GET', '/subscribe', subscribe)
+
+    handler = app.make_handler()
+    srv = yield from loop.create_server(handler, '127.0.0.1', 8080)
+    print("Server started at http://127.0.0.1:8080")
+    return srv, handler
+
+
+loop = asyncio.get_event_loop()
+srv, handler = loop.run_until_complete(init(loop))
+try:
+    loop.run_forever()
+except KeyboardInterrupt:
+    loop.run_until_complete(handler.finish_connections())

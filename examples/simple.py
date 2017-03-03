@@ -1,23 +1,21 @@
 import asyncio
+from aiohttp import web
 from aiohttp.web import Application, Response
-from aiohttp_sse import EventSourceResponse
+from aiohttp_sse import sse_response
 
 
-@asyncio.coroutine
-def hello(request):
-    resp = EventSourceResponse()
-    resp.start(request)
-    for i in range(0, 100):
-        print('foo')
-        yield from asyncio.sleep(1, loop=loop)
-        resp.send('foo {}'.format(i))
-    resp.stop_streaming()
+async def hello(request):
+    resp = await sse_response(request)
+    async with resp:
+        for i in range(0, 100):
+            print('foo')
+            await asyncio.sleep(1)
+            resp.send('foo {}'.format(i))
     return resp
 
 
-@asyncio.coroutine
-def index(request):
-    d = b"""
+async def index(request):
+    d = """
         <html>
         <head>
             <script type="text/javascript"
@@ -36,26 +34,12 @@ def index(request):
         </body>
     </html>
     """
-    resp = Response(body=d)
-
+    resp = Response(text=d, content_type='text/html')
     return resp
 
 
-@asyncio.coroutine
-def init(loop):
-    app = Application(loop=loop)
-    app.router.add_route('GET', '/hello', hello)
-    app.router.add_route('GET', '/index', index)
-
-    handler = app.make_handler()
-    srv = yield from loop.create_server(handler, '127.0.0.1', 8080)
-    print("Server started at http://127.0.0.1:8080")
-    return srv, handler
-
-
 loop = asyncio.get_event_loop()
-srv, handler = loop.run_until_complete(init(loop))
-try:
-    loop.run_forever()
-except KeyboardInterrupt:
-    loop.run_until_complete(handler.finish_connections())
+app = Application(loop=loop)
+app.router.add_route('GET', '/hello', hello)
+app.router.add_route('GET', '/index', index)
+web.run_app(app, host='127.0.0.1', port=8080)
