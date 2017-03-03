@@ -35,6 +35,7 @@ Example
 
     import asyncio
     from aiohttp import web
+    from aiohttp.web import Application, Response
     from aiohttp_sse import sse_response
 
 
@@ -51,7 +52,7 @@ Example
 
 
     async def index(request):
-        d = b"""
+        d = """
             <html>
             <head>
                 <script type="text/javascript"
@@ -70,7 +71,7 @@ Example
             </body>
         </html>
         """
-        return Response(body=d)
+        return Response(text=d, content_type='text/html')
 
 
     loop = asyncio.get_event_loop()
@@ -84,6 +85,7 @@ Same example with asynchronous context manager interface (python3.5+)
 .. code:: python
 
     import asyncio
+    from aiohttp import web
     from aiohttp.web import Application, Response
     from aiohttp_sse import sse_response
 
@@ -99,7 +101,7 @@ Same example with asynchronous context manager interface (python3.5+)
 
 
     async def index(request):
-        d = b"""
+        d = """
             <html>
             <head>
                 <script type="text/javascript"
@@ -118,7 +120,7 @@ Same example with asynchronous context manager interface (python3.5+)
             </body>
         </html>
         """
-        return Response(body=d)
+        return Response(text=d, content_type='text/html')
 
 
     loop = asyncio.get_event_loop()
