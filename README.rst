@@ -40,7 +40,7 @@ Example
 
 
     async def hello(request):
-        loop = asyncio.get_event_loop()
+        loop = request.app.loop
         resp = await sse_response(request)
         for i in range(0, 100):
             print('foo')
@@ -91,6 +91,7 @@ Same example with asynchronous context manager interface (python3.5+)
 
 
     async def hello(request):
+        loop = request.app.loop
         resp = await sse_response(request)
         async with resp:
             for i in range(0, 100):
