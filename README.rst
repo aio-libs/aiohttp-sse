@@ -74,8 +74,7 @@ Example
         return Response(text=d, content_type='text/html')
 
 
-    loop = asyncio.get_event_loop()
-    app = web.Application(loop=loop)
+    app = web.Application()
     app.router.add_route('GET', '/hello', hello)
     app.router.add_route('GET', '/index', index)
     web.run_app(app, host='127.0.0.1', port=8080)
@@ -124,8 +123,7 @@ Same example with asynchronous context manager interface (python3.5+)
         return Response(text=d, content_type='text/html')
 
 
-    loop = asyncio.get_event_loop()
-    app = web.Application(loop=loop)
+    app = web.Application()
     app.router.add_route('GET', '/hello', hello)
     app.router.add_route('GET', '/index', index)
     web.run_app(app, host='127.0.0.1', port=8080)

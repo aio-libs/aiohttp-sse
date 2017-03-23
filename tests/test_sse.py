@@ -6,12 +6,10 @@ from aiohttp_sse import EventSourceResponse, sse_response
 
 
 @pytest.mark.asyncio(forbid_global_loop=True)
-@pytest.mark.parametrize('with_deprecated_start', (False, True))
 @pytest.mark.parametrize('with_sse_response', (False, True),
                          ids=('without_sse_response',
                               'with_sse_response'))
-def test_func(loop, unused_tcp_port, with_deprecated_start,
-              with_sse_response, session):
+def test_func(loop, unused_tcp_port, with_sse_response, session):
 
     @asyncio.coroutine
     def func(request):
@@ -20,10 +18,7 @@ def test_func(loop, unused_tcp_port, with_deprecated_start,
                                            headers={'X-SSE': 'aiohttp_sse'})
         else:
             resp = EventSourceResponse(headers={'X-SSE': 'aiohttp_sse'})
-            if with_deprecated_start:
-                resp.start(request)
-            else:
-                yield from resp.prepare(request)
+            yield from resp.prepare(request)
         resp.send('foo')
         resp.send('foo', event='bar')
         resp.send('foo', event='bar', id='xyz')
@@ -32,11 +27,11 @@ def test_func(loop, unused_tcp_port, with_deprecated_start,
         yield from resp.wait()
         return resp
 
-    app = web.Application(loop=loop)
+    app = web.Application()
     app.router.add_route('GET', '/', func)
     app.router.add_route('POST', '/', func)
 
-    handler = app.make_handler()
+    handler = app.make_handler(loop=loop)
     srv = yield from loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
@@ -79,11 +74,11 @@ def test_wait_stop_streaming(loop, unused_tcp_port, session):
         yield from resp.wait()
         return resp
 
-    app = web.Application(loop=loop)
+    app = web.Application()
     app['socket'] = []
     app.router.add_route('GET', '/', func)
 
-    handler = app.make_handler()
+    handler = app.make_handler(loop=loop)
     srv = yield from loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
@@ -121,10 +116,10 @@ def test_retry(loop, unused_tcp_port, session):
         yield from resp.wait()
         return resp
 
-    app = web.Application(loop=loop)
+    app = web.Application()
     app.router.add_route('GET', '/', func)
 
-    handler = app.make_handler()
+    handler = app.make_handler(loop=loop)
     srv = yield from loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
@@ -189,11 +184,11 @@ def test_ping(loop, unused_tcp_port, session):
         yield from resp.wait()
         return resp
 
-    app = web.Application(loop=loop)
+    app = web.Application()
     app['socket'] = []
     app.router.add_route('GET', '/', func)
 
-    handler = app.make_handler()
+    handler = app.make_handler(loop=loop)
     srv = yield from loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)

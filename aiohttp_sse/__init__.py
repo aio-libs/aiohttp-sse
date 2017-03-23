@@ -40,14 +40,6 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
 
-    def start(self, request):
-        if request.method != 'GET':
-            raise HTTPMethodNotAllowed(request.method, ['GET'])
-
-        resp_impl = super().start(request)
-        self._prepare_sse(request.app.loop)
-        return resp_impl
-
     @asyncio.coroutine
     def prepare(self, request):
         """Prepare for streaming and send HTTP headers.
@@ -57,19 +49,14 @@ class EventSourceResponse(StreamResponse):
         if request.method != 'GET':
             raise HTTPMethodNotAllowed(request.method, ['GET'])
 
-        resp_impl = self._start_pre_check(request)
-        if resp_impl is not None:
-            return resp_impl
-        resp_impl = yield from super().prepare(request)
-        self._prepare_sse(request.app.loop)
-        return resp_impl
-
-    def _prepare_sse(self, loop):
-        self._loop = loop
-        self._ping_task = loop.create_task(self._ping())
-        # explicitly enabling chunked encoding, since content length
-        # usually not known beforehand.
-        self._resp_impl.enable_chunked_encoding()
+        if not self.prepared:
+            writer = yield from super().prepare(request)
+            self._loop = request.app.loop
+            self._ping_task = self._loop.create_task(self._ping())
+            # explicitly enabling chunked encoding, since content length
+            # usually not known beforehand.
+            self.enable_chunked_encoding()
+            return writer
 
     def send(self, data, id=None, event=None, retry=None):
         """Send data using EventSource protocol
