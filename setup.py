@@ -1,5 +1,6 @@
+import ast
+import codecs
 import os
-import re
 import sys
 from setuptools import setup, find_packages
 
@@ -11,21 +12,30 @@ if not PY_VER >= (3, 4):
 
 
 def read(f):
-    return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
+    with codecs.open(os.path.join(os.path.dirname(__file__), f),
+                     encoding='utf-8') as ofile:
+        return ofile.read()
+
+
+class VersionFinder(ast.NodeVisitor):
+    def __init__(self):
+        self.version = None
+
+    def visit_Assign(self, node):
+        if not self.version:
+            if node.targets[0].id == '__version__':
+                self.version = node.value.s
 
 
 def read_version():
-    regexp = re.compile(r"^__version__\W*=\W*'([\d.abrc]+)'")
     init_py = os.path.join(os.path.dirname(__file__),
                            'aiohttp_sse', '__init__.py')
-    with open(init_py) as f:
-        for line in f:
-            match = regexp.match(line)
-            if match is not None:
-                return match.group(1)
-        else:
-            msg = 'Cannot find version in aiohttp_sse/__init__.py'
-            raise RuntimeError(msg)
+    finder = VersionFinder()
+    finder.visit(ast.parse(read(init_py)))
+    if finder.version is None:
+        msg = 'Cannot find version in aiohttp_sse/__init__.py'
+        raise RuntimeError(msg)
+    return finder.version
 
 
 install_requires = ['aiohttp>=0.14,<2.0']
