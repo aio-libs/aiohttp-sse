@@ -5,7 +5,7 @@ import io
 from aiohttp.web import StreamResponse
 from aiohttp.web import HTTPMethodNotAllowed
 
-__version__ = '0.0.3a0'
+__version__ = '0.1.0'
 __all__ = ['EventSourceResponse', 'sse_response']
 
 
