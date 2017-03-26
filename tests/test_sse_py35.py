@@ -23,11 +23,11 @@ async def test_context_manager(loop, unused_tcp_port, session):
             sse.send('foo', event='bar', id='xyz', retry=1)
         return sse
 
-    app = web.Application(loop=loop)
+    app = web.Application()
     app.router.add_route('GET', '/', func)
     app.router.add_route('POST', '/', func)
 
-    handler = app.make_handler()
+    handler = app.make_handler(loop=loop)
     srv = await loop.create_server(
         handler, '127.0.0.1', unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
