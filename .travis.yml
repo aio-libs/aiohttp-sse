@@ -3,11 +3,21 @@ language: python
 matrix:
     include:
         - python: 3.4.5
-          env: TOXENV=py34
+          env: TOXENV=py34-aiohttp-2
+        - python: 3.4.5
+          env: TOXENV=py34-aiohttp-master
         - python: 3.5
-          env: TOXENV=py35
+          env: TOXENV=py35-aiohttp-2
+        - python: 3.5
+          env: TOXENV=py35-aiohttp-master
         - python: 3.6
-          env: TOXENV=py36
+          env: TOXENV=py36-aiohttp-2
+        - python: 3.6
+          env: TOXENV=py36-aiohttp-master
+    allow_failures:
+        - env: TOXENV=py34-aiohttp-master
+        - env: TOXENV=py35-aiohttp-master
+        - env: TOXENV=py36-aiohttp-master
 
 install:
     - pip install tox codecov
