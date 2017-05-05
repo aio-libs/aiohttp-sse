@@ -97,10 +97,14 @@ async def subscribe(request):
         queue = asyncio.Queue()
         print('Someone joined.')
         request.app['channels'].add(queue)
-        while True:
-            payload = await queue.get()
-            response.send(payload)
-            queue.task_done()
+        try:
+            while not response.task.done():
+                payload = await queue.get()
+                response.send(payload)
+                queue.task_done()
+        finally:
+            request.app['channels'].remove(queue)
+            print('Someone left.')
     return response
 
 
