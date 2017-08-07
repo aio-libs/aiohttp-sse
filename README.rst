@@ -100,4 +100,4 @@ The *aiohttp-sse* is offered under Apache 2.0 license.
 
 .. _Python: https://www.python.org
 .. _asyncio: http://docs.python.org/3.5/library/asyncio.html
-.. _aiohttp: https://github.com/KeepSafe/aiohttp
+.. _aiohttp: https://github.com/aio-libs/aiohttp
