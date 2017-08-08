@@ -5,7 +5,7 @@ import io
 from aiohttp.web import StreamResponse
 from aiohttp.web import HTTPMethodNotAllowed
 
-__version__ = '1.0.1-dev'
+__version__ = '2.0.0-dev'
 __all__ = ['EventSourceResponse', 'sse_response']
 
 
@@ -15,11 +15,10 @@ class EventSourceResponse(StreamResponse):
 
         async def hello(request):
             # create response object
-            resp = EventSourceResponse()
-            # prepare and send headers
-            await resp.prepare(request)
-            # stream data
-            resp.send('foo')
+            resp = await EventSourceResponse()
+            async with resp:
+                # stream data
+                resp.send('foo')
             return resp
     """
 
@@ -40,8 +39,7 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
 
-    @asyncio.coroutine
-    def prepare(self, request):
+    async def prepare(self, request):
         """Prepare for streaming and send HTTP headers.
 
         :param request: regular aiohttp.web.Request.
@@ -50,7 +48,7 @@ class EventSourceResponse(StreamResponse):
             raise HTTPMethodNotAllowed(request.method, ['GET'])
 
         if not self.prepared:
-            writer = yield from super().prepare(request)
+            writer = await super().prepare(request)
             self._loop = request.app.loop
             self._ping_task = self._loop.create_task(self._ping())
             # explicitly enabling chunked encoding, since content length
@@ -91,8 +89,7 @@ class EventSourceResponse(StreamResponse):
         buffer.write(b'\r\n')
         self.write(buffer.getvalue())
 
-    @asyncio.coroutine
-    def wait(self):
+    async def wait(self):
         """EventSourceResponse object is used for streaming data to the client,
         this method returns future, so we can wain until connection will
         be closed or other task explicitly call ``stop_streaming`` method.
@@ -100,7 +97,7 @@ class EventSourceResponse(StreamResponse):
         if self._ping_task is None:
             raise RuntimeError('Response is not started')
         with contextlib.suppress(asyncio.CancelledError):
-            yield from self._ping_task
+            await self._ping_task
 
     def stop_streaming(self):
         """Used in conjunction with ``wait`` could be called from other task
@@ -132,28 +129,24 @@ class EventSourceResponse(StreamResponse):
 
         self._ping_interval = value
 
-    @asyncio.coroutine
-    def _ping(self):
+    async def _ping(self):
         # periodically send ping to the browser. Any message that
         # starts with ":" colon ignored by a browser and could be used
         # as ping message.
         while True:
-            yield from asyncio.sleep(self._ping_interval, loop=self._loop)
+            await asyncio.sleep(self._ping_interval, loop=self._loop)
             self.write(b': ping\r\n\r\n')
 
-    @asyncio.coroutine
-    def __aenter__(self):
+    async def __aenter__(self):
         return self
 
-    @asyncio.coroutine
-    def __aexit__(self, *args):
+    async def __aexit__(self, *args):
         self.stop_streaming()
-        yield from self.wait()
+        await self.wait()
         return
 
 
-@asyncio.coroutine
-def sse_response(request, *, status=200, reason=None, headers=None):
+async def sse_response(request, *, status=200, reason=None, headers=None):
     sse = EventSourceResponse(status=status, reason=reason, headers=headers)
-    yield from sse.prepare(request)
+    await sse.prepare(request)
     return sse

@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 import aiohttp
 
@@ -19,8 +17,7 @@ def loop(event_loop, debug):
 @pytest.fixture
 def session(loop):
 
-    @asyncio.coroutine
-    def create_session(loop):
+    async def create_session(loop):
         return aiohttp.ClientSession(loop=loop)
 
     session = loop.run_until_complete(create_session(loop))
