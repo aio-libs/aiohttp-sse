@@ -5,6 +5,9 @@ import io
 from aiohttp.web import StreamResponse
 from aiohttp.web import HTTPMethodNotAllowed
 
+from .helpers import _ContextManager
+
+
 __version__ = '2.0.0-dev'
 __all__ = ['EventSourceResponse', 'sse_response']
 
@@ -38,6 +41,10 @@ class EventSourceResponse(StreamResponse):
         self._loop = None
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
+
+    async def _prepare(self, request):
+        await self.prepare(request)
+        return self
 
     async def prepare(self, request):
         """Prepare for streaming and send HTTP headers.
@@ -146,7 +153,6 @@ class EventSourceResponse(StreamResponse):
         return
 
 
-async def sse_response(request, *, status=200, reason=None, headers=None):
+def sse_response(request, *, status=200, reason=None, headers=None):
     sse = EventSourceResponse(status=status, reason=reason, headers=headers)
-    await sse.prepare(request)
-    return sse
+    return _ContextManager(sse._prepare(request))
