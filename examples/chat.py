@@ -91,8 +91,7 @@ async def message(request):
 
 
 async def subscribe(request):
-    response = await sse_response(request)
-    async with response:
+    async with sse_response(request) as response:
         app = request.app
         queue = asyncio.Queue()
         print('Someone joined.')
