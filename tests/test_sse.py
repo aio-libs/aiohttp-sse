@@ -211,8 +211,8 @@ async def test_ping(loop, unused_tcp_port, session):
 async def test_context_manager(loop, unused_tcp_port, session):
 
     async def func(request):
-        sse = await sse_response(request, headers={'X-SSE': 'aiohttp_sse'})
-        async with sse:
+        h = {'X-SSE': 'aiohttp_sse'}
+        async with sse_response(request, headers=h) as sse:
             sse.send('foo')
             sse.send('foo', event='bar')
             sse.send('foo', event='bar', id='xyz')

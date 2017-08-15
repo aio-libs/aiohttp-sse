@@ -41,8 +41,7 @@ Example
 
     async def hello(request):
         loop = request.app.loop
-        resp = await sse_response(request)
-        async with resp:
+        async with sse_response(request) as resp:
             for i in range(0, 100):
                 print('foo')
                 await asyncio.sleep(1, loop=loop)
