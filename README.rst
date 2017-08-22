@@ -10,6 +10,11 @@ aiohttp-sse
      :target: https://pyup.io/repos/github/aio-libs/aiohttp-sse/
      :alt: Updates
 
+.. image:: https://badges.gitter.im/Join%20Chat.svg
+     :target: https://gitter.im/aio-libs/Lobby
+     :alt: Chat on Gitter
+
+
 The *EventSource** interface is used to receive server-sent events. It connects
 to a server over HTTP and receives events in text/event-stream format without
 closing the connection. *aiohttp-sse* provides support for server-sent
