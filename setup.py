@@ -38,7 +38,7 @@ def read_version():
     return finder.version
 
 
-install_requires = ['aiohttp>=2.0']
+install_requires = ['aiohttp>=3.0']
 
 
 setup(name='aiohttp-sse',

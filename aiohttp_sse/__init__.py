@@ -63,7 +63,7 @@ class EventSourceResponse(StreamResponse):
             self.enable_chunked_encoding()
             return writer
 
-    def send(self, data, id=None, event=None, retry=None):
+    async def send(self, data, id=None, event=None, retry=None):
         """Send data using EventSource protocol
 
         :param str data: The data field for the message.
@@ -94,7 +94,7 @@ class EventSourceResponse(StreamResponse):
             buffer.write('retry: {0}\r\n'.format(retry).encode('utf-8'))
 
         buffer.write(b'\r\n')
-        self.write(buffer.getvalue())
+        await self.write(buffer.getvalue())
 
     async def wait(self):
         """EventSourceResponse object is used for streaming data to the client,
@@ -142,7 +142,7 @@ class EventSourceResponse(StreamResponse):
         # as ping message.
         while True:
             await asyncio.sleep(self._ping_interval, loop=self._loop)
-            self.write(b': ping\r\n\r\n')
+            await self.write(b': ping\r\n\r\n')
 
     async def __aenter__(self):
         return self
