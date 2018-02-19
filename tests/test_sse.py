@@ -18,10 +18,10 @@ async def test_func(loop, unused_tcp_port, with_sse_response, session):
         else:
             resp = EventSourceResponse(headers={'X-SSE': 'aiohttp_sse'})
             await resp.prepare(request)
-        resp.send('foo')
-        resp.send('foo', event='bar')
-        resp.send('foo', event='bar', id='xyz')
-        resp.send('foo', event='bar', id='xyz', retry=1)
+        await resp.send('foo')
+        await resp.send('foo', event='bar')
+        await resp.send('foo', event='bar', id='xyz')
+        await resp.send('foo', event='bar', id='xyz', retry=1)
         resp.stop_streaming()
         await resp.wait()
         return resp
@@ -67,7 +67,7 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
         app = request.app
         resp = EventSourceResponse()
         await resp.prepare(request)
-        resp.send('foo', event='bar', id='xyz', retry=1)
+        await resp.send('foo', event='bar', id='xyz', retry=1)
         app['socket'].append(resp)
         await resp.wait()
         return resp
@@ -107,8 +107,8 @@ async def test_retry(loop, unused_tcp_port, session):
         resp = EventSourceResponse()
         await resp.prepare(request)
         with pytest.raises(TypeError):
-            resp.send('foo', retry='one')
-        resp.send('foo', retry=1)
+            await resp.send('foo', retry='one')
+        await resp.send('foo', retry=1)
         resp.stop_streaming()
         await resp.wait()
         return resp
@@ -175,7 +175,7 @@ async def test_ping(loop, unused_tcp_port, session):
         resp = EventSourceResponse()
         resp.ping_interval = 1
         await resp.prepare(request)
-        resp.send('foo')
+        await resp.send('foo')
         app['socket'].append(resp)
         await resp.wait()
         return resp
@@ -213,10 +213,10 @@ async def test_context_manager(loop, unused_tcp_port, session):
     async def func(request):
         h = {'X-SSE': 'aiohttp_sse'}
         async with sse_response(request, headers=h) as sse:
-            sse.send('foo')
-            sse.send('foo', event='bar')
-            sse.send('foo', event='bar', id='xyz')
-            sse.send('foo', event='bar', id='xyz', retry=1)
+            await sse.send('foo')
+            await sse.send('foo', event='bar')
+            await sse.send('foo', event='bar', id='xyz')
+            await sse.send('foo', event='bar', id='xyz', retry=1)
         return sse
 
     app = web.Application()

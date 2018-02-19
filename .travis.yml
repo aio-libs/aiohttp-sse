@@ -3,11 +3,11 @@ language: python
 matrix:
     include:
         - python: 3.5
-          env: TOXENV=py35-aiohttp-2
+          env: TOXENV=py35-aiohttp-3
         - python: 3.5
           env: TOXENV=py35-aiohttp-master
         - python: 3.6
-          env: TOXENV=py36-aiohttp-2
+          env: TOXENV=py36-aiohttp-3
         - python: 3.6
           env: TOXENV=py36-aiohttp-master
     allow_failures:

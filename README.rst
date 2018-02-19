@@ -50,7 +50,7 @@ Example
             for i in range(0, 100):
                 print('foo')
                 await asyncio.sleep(1, loop=loop)
-                resp.send('foo {}'.format(i))
+                await resp.send('foo {}'.format(i))
         return resp
 
 
@@ -94,7 +94,7 @@ Requirements
 ------------
 
 * Python_ 3.5+
-* aiohttp_
+* aiohttp_ 3+
 
 
 License
