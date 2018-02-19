@@ -1,8 +1,11 @@
 CHANGES
 =======
 
-2.0 (Undefined)
+2.1 (Undefined)
 ---------------
+
+2.0 (2018-02-19)
+----------------
 * Drop aiohttp < 3 support
 * ``EventSourceResponse.send`` is now a coroutine.
 

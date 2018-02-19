@@ -8,7 +8,7 @@ from aiohttp.web import HTTPMethodNotAllowed
 from .helpers import _ContextManager
 
 
-__version__ = '1.1.0'
+__version__ = '2.0.0'
 __all__ = ['EventSourceResponse', 'sse_response']
 
 
