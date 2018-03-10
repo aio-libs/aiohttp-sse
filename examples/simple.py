@@ -9,7 +9,7 @@ async def hello(request):
         for i in range(0, 100):
             print('foo')
             await asyncio.sleep(1)
-            resp.send('foo {}'.format(i))
+            await resp.send('foo {}'.format(i))
     return resp
 
 
