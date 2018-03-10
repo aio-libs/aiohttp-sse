@@ -99,7 +99,7 @@ async def subscribe(request):
         try:
             while not response.task.done():
                 payload = await queue.get()
-                response.send(payload)
+                await response.send(payload)
                 queue.task_done()
         finally:
             app['channels'].remove(queue)
