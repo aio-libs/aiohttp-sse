@@ -42,15 +42,16 @@ Example
     from aiohttp import web
     from aiohttp.web import Application, Response
     from aiohttp_sse import sse_response
-
+    from datetime import datetime
 
     async def hello(request):
         loop = request.app.loop
         async with sse_response(request) as resp:
-            for i in range(0, 100):
-                print('foo')
+            while True:
+                data = 'Server Time : {}'.format(datetime.now())
+                print(data)
+                await resp.send(data)
                 await asyncio.sleep(1, loop=loop)
-                await resp.send('foo {}'.format(i))
         return resp
 
 
@@ -63,7 +64,7 @@ Example
                 <script type="text/javascript">
                 var evtSource = new EventSource("/hello");
                 evtSource.onmessage = function(e) {
-                 $('#response').html(e.data);
+                $('#response').html(e.data);
                 }
 
                 </script>
@@ -81,7 +82,6 @@ Example
     app.router.add_route('GET', '/hello', hello)
     app.router.add_route('GET', '/index', index)
     web.run_app(app, host='127.0.0.1', port=8080)
-
 
 EventSource Protocol
 --------------------
