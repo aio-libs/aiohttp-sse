@@ -2,14 +2,16 @@ import asyncio
 from aiohttp import web
 from aiohttp.web import Application, Response
 from aiohttp_sse import sse_response
-
+from datetime import datetime
 
 async def hello(request):
+    loop = request.app.loop
     async with sse_response(request) as resp:
-        for i in range(0, 100):
-            print('foo')
-            await asyncio.sleep(1)
-            await resp.send('foo {}'.format(i))
+        while True:
+            data = 'Server Time : {}'.format(datetime.now())
+            print(data)
+            await resp.send(data)
+            await asyncio.sleep(1, loop=loop)
     return resp
 
 
@@ -33,12 +35,10 @@ async def index(request):
         </body>
     </html>
     """
-    resp = Response(text=d, content_type='text/html')
-    return resp
+    return Response(text=d, content_type='text/html')
 
 
-loop = asyncio.get_event_loop()
-app = Application(loop=loop)
+app = web.Application()
 app.router.add_route('GET', '/hello', hello)
 app.router.add_route('GET', '/index', index)
 web.run_app(app, host='127.0.0.1', port=8080)
