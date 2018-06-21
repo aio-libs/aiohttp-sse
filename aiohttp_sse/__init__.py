@@ -9,7 +9,7 @@ from aiohttp.web import HTTPMethodNotAllowed
 from .helpers import _ContextManager
 
 
-__version__ = '2.2.0'
+__version__ = '2.2.1'
 __all__ = ['EventSourceResponse', 'sse_response']
 
 
@@ -161,9 +161,12 @@ class EventSourceResponse(StreamResponse):
         return
 
 
-def sse_response(request, *, status=200, reason=None, headers=None, sep=None):
-    sse = EventSourceResponse(status=status,
-                              reason=reason,
-                              headers=headers,
-                              sep=sep)
+def sse_response(request, *, status=200, reason=None, headers=None, sep=None,
+                 response_cls=EventSourceResponse):
+    if not issubclass(response_cls, EventSourceResponse):
+        raise TypeError(
+            'response_cls must be subclass of '
+            'aiohttp_sse.EventSourceResponse, got {}'.format(response_cls))
+
+    sse = response_cls(status=status, reason=reason, headers=headers, sep=sep)
     return _ContextManager(sse._prepare(request))
