@@ -9,7 +9,7 @@ from aiohttp.web import HTTPMethodNotAllowed
 from .helpers import _ContextManager
 
 
-__version__ = '2.2.1'
+__version__ = '2.2.0'
 __all__ = ['EventSourceResponse', 'sse_response']
 
 
@@ -84,11 +84,11 @@ class EventSourceResponse(StreamResponse):
         """
         buffer = io.StringIO()
         if id is not None:
-            buffer.write('id: {}'.format(self.LINE_SEP_EXPR.sub('', id)))
+            buffer.write(self.LINE_SEP_EXPR.sub('', 'id: {}'.format(id)))
             buffer.write(self._sep)
 
         if event is not None:
-            buffer.write('event: {}'.format(self.LINE_SEP_EXPR.sub('', event)))
+            buffer.write(self.LINE_SEP_EXPR.sub('', 'event: {}'.format(event)))
             buffer.write(self._sep)
 
         for chunk in self.LINE_SEP_EXPR.split(data):
