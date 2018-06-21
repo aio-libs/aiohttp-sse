@@ -1,14 +1,18 @@
 import asyncio
-from aiohttp import web
-from aiohttp.web import Application, Response
-from aiohttp_sse import sse_response
+import json
 from datetime import datetime
+
+from aiohttp import web
+
+from aiohttp_sse import sse_response
+
 
 async def hello(request):
     loop = request.app.loop
     async with sse_response(request) as resp:
         while True:
-            data = 'Server Time : {}'.format(datetime.now())
+            time_dict = {'time': 'Server Time : {}'.format(datetime.now())}
+            data = json.dumps(time_dict, indent=2)
             print(data)
             await resp.send(data)
             await asyncio.sleep(1, loop=loop)
@@ -24,21 +28,21 @@ async def index(request):
             <script type="text/javascript">
             var evtSource = new EventSource("/hello");
             evtSource.onmessage = function(e) {
-             $('#response').html(e.data);
+              $('#response').html(e.data);
             }
-
             </script>
         </head>
         <body>
             <h1>Response from server:</h1>
-            <div id="response"></div>
+            <pre id="response"></pre>
         </body>
     </html>
     """
-    return Response(text=d, content_type='text/html')
+    return web.Response(text=d, content_type='text/html')
 
 
-app = web.Application()
-app.router.add_route('GET', '/hello', hello)
-app.router.add_route('GET', '/index', index)
-web.run_app(app, host='127.0.0.1', port=8080)
+if __name__ == '__main__':
+    app = web.Application()
+    app.router.add_route('GET', '/hello', hello)
+    app.router.add_route('GET', '/index', index)
+    web.run_app(app, host='127.0.0.1', port=8080)
