@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import io
+import re
 
 from aiohttp.web import StreamResponse
 from aiohttp.web import HTTPMethodNotAllowed
@@ -8,7 +9,7 @@ from aiohttp.web import HTTPMethodNotAllowed
 from .helpers import _ContextManager
 
 
-__version__ = '2.1.0'
+__version__ = '2.2.0'
 __all__ = ['EventSourceResponse', 'sse_response']
 
 
@@ -26,8 +27,10 @@ class EventSourceResponse(StreamResponse):
     """
 
     DEFAULT_PING_INTERVAL = 15
+    DEFAULT_SEPARATOR = '\r\n'
+    LINE_SEP_EXPR = re.compile(r'\r\n|\r|\n')
 
-    def __init__(self, *, status=200, reason=None, headers=None):
+    def __init__(self, *, status=200, reason=None, headers=None, sep=None):
         super().__init__(status=status, reason=reason)
 
         if headers is not None:
@@ -41,6 +44,7 @@ class EventSourceResponse(StreamResponse):
         self._loop = None
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
+        self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
 
     async def _prepare(self, request):
         await self.prepare(request)
@@ -78,23 +82,27 @@ class EventSourceResponse(StreamResponse):
             specifying the reconnection time in milliseconds. If a non-integer
             value is specified, the field is ignored.
         """
-        buffer = io.BytesIO()
+        buffer = io.StringIO()
         if id is not None:
-            buffer.write('id: {0}\r\n'.format(id).encode('utf-8'))
+            buffer.write('id: {}'.format(self.LINE_SEP_EXPR.sub('', id)))
+            buffer.write(self._sep)
 
         if event is not None:
-            buffer.write('event: {0}\r\n'.format(event).encode('utf-8'))
+            buffer.write('event: {}'.format(self.LINE_SEP_EXPR.sub('', event)))
+            buffer.write(self._sep)
 
-        for chunk in data.split('\r\n'):
-            buffer.write('data: {0}\r\n'.format(chunk).encode('utf-8'))
+        for chunk in self.LINE_SEP_EXPR.split(data):
+            buffer.write('data: {}'.format(chunk))
+            buffer.write(self._sep)
 
         if retry is not None:
             if not isinstance(retry, int):
                 raise TypeError('retry argument must be int')
-            buffer.write('retry: {0}\r\n'.format(retry).encode('utf-8'))
+            buffer.write('retry: {}'.format(retry))
+            buffer.write(self._sep)
 
-        buffer.write(b'\r\n')
-        await self.write(buffer.getvalue())
+        buffer.write(self._sep)
+        await self.write(buffer.getvalue().encode('utf-8'))
 
     async def wait(self):
         """EventSourceResponse object is used for streaming data to the client,
@@ -142,7 +150,7 @@ class EventSourceResponse(StreamResponse):
         # as ping message.
         while True:
             await asyncio.sleep(self._ping_interval, loop=self._loop)
-            await self.write(b': ping\r\n\r\n')
+            await self.write(': ping{0}{0}'.format(self._sep).encode('utf-8'))
 
     async def __aenter__(self):
         return self
@@ -153,6 +161,9 @@ class EventSourceResponse(StreamResponse):
         return
 
 
-def sse_response(request, *, status=200, reason=None, headers=None):
-    sse = EventSourceResponse(status=status, reason=reason, headers=headers)
+def sse_response(request, *, status=200, reason=None, headers=None, sep=None):
+    sse = EventSourceResponse(status=status,
+                              reason=reason,
+                              headers=headers,
+                              sep=sep)
     return _ContextManager(sse._prepare(request))
