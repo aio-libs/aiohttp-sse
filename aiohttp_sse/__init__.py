@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import io
 import re
 
@@ -63,6 +64,10 @@ class EventSourceResponse(StreamResponse):
             # usually not known beforehand.
             self.enable_chunked_encoding()
             return writer
+        else:
+            if request.protocol.transport is None:
+                # request disconnected
+                raise asyncio.CancelledError()
 
     async def send(self, data, id=None, event=None, retry=None):
         """Send data using EventSource protocol
@@ -108,14 +113,8 @@ class EventSourceResponse(StreamResponse):
         """
         if self._ping_task is None:
             raise RuntimeError('Response is not started')
-
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await self._ping_task
-        except asyncio.CancelledError:
-            # Re-raise if client disconnect
-            request = getattr(self, '_req', None)
-            if request is not None and request.protocol._connection_lost:
-                raise
 
     def stop_streaming(self):
         """Used in conjunction with ``wait`` could be called from other task
