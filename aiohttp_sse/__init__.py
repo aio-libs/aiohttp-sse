@@ -1,13 +1,10 @@
 import asyncio
-import contextlib
 import io
 import re
 
-from aiohttp.web import StreamResponse
-from aiohttp.web import HTTPMethodNotAllowed
+from aiohttp.web import HTTPMethodNotAllowed, StreamResponse
 
 from .helpers import _ContextManager
-
 
 __version__ = '2.2.0'
 __all__ = ['EventSourceResponse', 'sse_response']
@@ -111,8 +108,14 @@ class EventSourceResponse(StreamResponse):
         """
         if self._ping_task is None:
             raise RuntimeError('Response is not started')
-        with contextlib.suppress(asyncio.CancelledError):
+
+        try:
             await self._ping_task
+        except asyncio.CancelledError:
+            # Re-raise if client disconnect
+            request = getattr(self, '_req', None)
+            if request is not None and request.protocol._connection_lost:
+                raise
 
     def stop_streaming(self):
         """Used in conjunction with ``wait`` could be called from other task
