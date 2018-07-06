@@ -2,6 +2,8 @@ import asyncio
 
 import pytest
 from aiohttp import web
+from aiohttp.test_utils import make_mocked_request
+
 from aiohttp_sse import EventSourceResponse, sse_response
 
 
@@ -10,7 +12,6 @@ from aiohttp_sse import EventSourceResponse, sse_response
                          ids=('without_sse_response',
                               'with_sse_response'))
 async def test_func(loop, unused_tcp_port, with_sse_response, session):
-
     async def func(request):
         if with_sse_response:
             resp = await sse_response(request,
@@ -62,7 +63,6 @@ async def test_func(loop, unused_tcp_port, with_sse_response, session):
 
 @pytest.mark.asyncio
 async def test_wait_stop_streaming(loop, unused_tcp_port, session):
-
     async def func(request):
         app = request.app
         resp = EventSourceResponse()
@@ -102,7 +102,6 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
 
 @pytest.mark.asyncio
 async def test_retry(loop, unused_tcp_port, session):
-
     async def func(request):
         resp = EventSourceResponse()
         await resp.prepare(request)
@@ -169,7 +168,6 @@ def test_ping_property(loop):
 
 @pytest.mark.asyncio
 async def test_ping(loop, unused_tcp_port, session):
-
     async def func(request):
         app = request.app
         resp = EventSourceResponse()
@@ -209,7 +207,6 @@ async def test_ping(loop, unused_tcp_port, session):
 
 @pytest.mark.asyncio
 async def test_context_manager(loop, unused_tcp_port, session):
-
     async def func(request):
         h = {'X-SSE': 'aiohttp_sse'}
         async with sse_response(request, headers=h) as sse:
@@ -242,6 +239,128 @@ async def test_context_manager(loop, unused_tcp_port, session):
                'id: xyz\r\nevent: bar\r\ndata: foo\r\n\r\n' \
                'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
     assert streamed_data == expected
+    srv.close()
+    await srv.wait_closed()
+    await handler.shutdown(0)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('with_subclass',
+                         [False, True],
+                         ids=('without_subclass', 'with_subclass'))
+async def test_custom_response_cls(with_subclass):
+    class CustomResponse(EventSourceResponse if with_subclass else object):
+        pass
+
+    request = make_mocked_request('GET', '/')
+    if with_subclass:
+        with pytest.warns(RuntimeWarning):
+            sse_response(request, response_cls=CustomResponse)
+    else:
+        with pytest.raises(TypeError):
+            sse_response(request, response_cls=CustomResponse)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('sep',
+                         ['\n', '\r', '\r\n'],
+                         ids=('LF', 'CR', 'CR+LF'))
+async def test_custom_sep(loop, unused_tcp_port, session, sep):
+    async def func(request):
+        h = {'X-SSE': 'aiohttp_sse'}
+        async with sse_response(request, headers=h, sep=sep) as sse:
+            await sse.send('foo')
+            await sse.send('foo', event='bar')
+            await sse.send('foo', event='bar', id='xyz')
+            await sse.send('foo', event='bar', id='xyz', retry=1)
+        return sse
+
+    app = web.Application()
+    app.router.add_route('GET', '/', func)
+
+    handler = app.make_handler(loop=loop)
+    srv = await loop.create_server(
+        handler, '127.0.0.1', unused_tcp_port)
+    url = "http://127.0.0.1:{}/".format(unused_tcp_port)
+
+    resp = await session.request('GET', url)
+    assert resp.status == 200
+
+    # make sure that EventSourceResponse supports passing
+    # custom headers
+    assert resp.headers['X-SSE'] == 'aiohttp_sse'
+
+    # check streamed data
+    streamed_data = await resp.text()
+    expected = 'data: foo{0}{0}' \
+               'event: bar{0}data: foo{0}{0}' \
+               'id: xyz{0}event: bar{0}data: foo{0}{0}' \
+               'id: xyz{0}event: bar{0}data: foo{0}retry: 1{0}{0}'
+
+    assert streamed_data == expected.format(sep)
+    srv.close()
+    await srv.wait_closed()
+    await handler.shutdown(0)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('stream_sep,line_sep',
+                         [('\n', '\n',),
+                          ('\n', '\r',),
+                          ('\n', '\r\n',),
+                          ('\r', '\n',),
+                          ('\r', '\r',),
+                          ('\r', '\r\n',),
+                          ('\r\n', '\n',),
+                          ('\r\n', '\r',),
+                          ('\r\n', '\r\n',), ],
+                         ids=('steam-LF:line-LF',
+                              'steam-LF:line-CR',
+                              'steam-LF:line-CR+LF',
+                              'steam-CR:line-LF',
+                              'steam-CR:line-CR',
+                              'steam-CR:line-CR+LF',
+                              'steam-CR+LF:line-LF',
+                              'steam-CR+LF:line-CR',
+                              'steam-CR+LF:line-CR+LF',
+                              ))
+async def test_multiline_data(loop, unused_tcp_port, session, stream_sep,
+                              line_sep):
+    async def func(request):
+        h = {'X-SSE': 'aiohttp_sse'}
+        lines = line_sep.join(['foo', 'bar', 'xyz'])
+        async with sse_response(request, headers=h, sep=stream_sep) as sse:
+            await sse.send(lines)
+            await sse.send(lines, event='bar')
+            await sse.send(lines, event='bar', id='xyz')
+            await sse.send(lines, event='bar', id='xyz', retry=1)
+        return sse
+
+    app = web.Application()
+    app.router.add_route('GET', '/', func)
+
+    handler = app.make_handler(loop=loop)
+    srv = await loop.create_server(
+        handler, '127.0.0.1', unused_tcp_port)
+    url = "http://127.0.0.1:{}/".format(unused_tcp_port)
+
+    resp = await session.request('GET', url)
+    assert resp.status == 200
+
+    # make sure that EventSourceResponse supports passing
+    # custom headers
+    assert resp.headers['X-SSE'] == 'aiohttp_sse'
+
+    # check streamed data
+    streamed_data = await resp.text()
+    expected = (
+        'data: foo{0}data: bar{0}data: xyz{0}{0}'
+        'event: bar{0}data: foo{0}data: bar{0}data: xyz{0}{0}'
+        'id: xyz{0}event: bar{0}data: foo{0}data: bar{0}data: xyz{0}{0}'
+        'id: xyz{0}event: bar{0}data: foo{0}data: bar{0}data: xyz{0}'
+        'retry: 1{0}{0}'
+    )
+    assert streamed_data == expected.format(stream_sep)
     srv.close()
     await srv.wait_closed()
     await handler.shutdown(0)
