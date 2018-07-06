@@ -65,6 +65,9 @@ class EventSourceResponse(StreamResponse):
             self.enable_chunked_encoding()
             return writer
         else:
+            # hackish way to check if connection alive
+            # should be updated once we have proper API in aiohttp
+            # https://github.com/aio-libs/aiohttp/issues/3105
             if request.protocol.transport is None:
                 # request disconnected
                 raise asyncio.CancelledError()
