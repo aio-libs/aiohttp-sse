@@ -40,9 +40,10 @@ Example
 
     import asyncio
     from aiohttp import web
-    from aiohttp.web import Application, Response
+    from aiohttp.web import Response
     from aiohttp_sse import sse_response
     from datetime import datetime
+
 
     async def hello(request):
         loop = request.app.loop
@@ -58,18 +59,13 @@ Example
     async def index(request):
         d = """
             <html>
-            <head>
-                <script type="text/javascript"
-                    src="http://code.jquery.com/jquery.min.js"></script>
-                <script type="text/javascript">
-                var evtSource = new EventSource("/hello");
-                evtSource.onmessage = function(e) {
-                $('#response').html(e.data);
-                }
-
-                </script>
-            </head>
             <body>
+                <script>
+                    var evtSource = new EventSource("/hello");
+                    evtSource.onmessage = function(e) {
+                        document.getElementById('response').innerText = e.data
+                    }
+                </script>
                 <h1>Response from server:</h1>
                 <div id="response"></div>
             </body>
@@ -80,8 +76,9 @@ Example
 
     app = web.Application()
     app.router.add_route('GET', '/hello', hello)
-    app.router.add_route('GET', '/index', index)
+    app.router.add_route('GET', '/', index)
     web.run_app(app, host='127.0.0.1', port=8080)
+
 
 EventSource Protocol
 --------------------
