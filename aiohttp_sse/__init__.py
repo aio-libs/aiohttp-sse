@@ -38,6 +38,7 @@ class EventSourceResponse(StreamResponse):
         self.headers['Content-Type'] = 'text/event-stream'
         self.headers['Cache-Control'] = 'no-cache'
         self.headers['Connection'] = 'keep-alive'
+        self.headers['X-Accel-Buffering'] = 'no'
 
         self._loop = None
         self._ping_interval = self.DEFAULT_PING_INTERVAL
