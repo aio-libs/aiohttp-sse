@@ -43,6 +43,12 @@ async def test_func(loop, unused_tcp_port, with_sse_response, session):
     # custom headers
     assert resp.headers.get('X-SSE') == 'aiohttp_sse'
 
+    # make sure default headers set
+    assert resp.headers.get('Content-Type') == 'text/event-stream'
+    assert resp.headers.get('Cache-Control') == 'no-cache'
+    assert resp.headers.get('Connection') == 'keep-alive'
+    assert resp.headers.get('X-Accel-Buffering') == 'no'
+
     # check streamed data
     streamed_data = await resp.text()
     expected = 'data: foo\r\n\r\n' \
