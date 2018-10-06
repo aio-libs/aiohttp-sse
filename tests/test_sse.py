@@ -7,6 +7,14 @@ from aiohttp.test_utils import make_mocked_request
 from aiohttp_sse import EventSourceResponse, sse_response
 
 
+async def make_runner(app, host, port):
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host, port)
+    await site.start()
+    return runner
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('with_sse_response', (False, True),
                          ids=('without_sse_response',
@@ -31,9 +39,9 @@ async def test_func(loop, unused_tcp_port, with_sse_response, session):
     app.router.add_route('GET', '/', func)
     app.router.add_route('POST', '/', func)
 
-    handler = app.make_handler(loop=loop)
-    srv = await loop.create_server(
-        handler, '127.0.0.1', unused_tcp_port)
+    host = '127.0.0.1'
+    runner = await make_runner(app, host, unused_tcp_port)
+
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
     resp = await session.request('GET', url)
@@ -62,9 +70,7 @@ async def test_func(loop, unused_tcp_port, with_sse_response, session):
     resp = await session.request('POST', url)
     assert 405 == resp.status
     resp.close()
-    srv.close()
-    await srv.wait_closed()
-    await handler.shutdown(0)
+    await runner.cleanup()
 
 
 @pytest.mark.asyncio
@@ -82,9 +88,8 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
     app['socket'] = []
     app.router.add_route('GET', '/', func)
 
-    handler = app.make_handler(loop=loop)
-    srv = await loop.create_server(
-        handler, '127.0.0.1', unused_tcp_port)
+    host = '127.0.0.1'
+    runner = await make_runner(app, host, unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
     resp_task = asyncio.ensure_future(session.request('GET', url), loop=loop)
@@ -101,9 +106,7 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
     expected = 'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
     assert streamed_data == expected
 
-    srv.close()
-    await srv.wait_closed()
-    await handler.shutdown(0)
+    await runner.cleanup()
 
 
 @pytest.mark.asyncio
@@ -121,9 +124,8 @@ async def test_retry(loop, unused_tcp_port, session):
     app = web.Application()
     app.router.add_route('GET', '/', func)
 
-    handler = app.make_handler(loop=loop)
-    srv = await loop.create_server(
-        handler, '127.0.0.1', unused_tcp_port)
+    host = '127.0.0.1'
+    runner = await make_runner(app, host, unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
     resp = await session.request('GET', url)
@@ -134,9 +136,7 @@ async def test_retry(loop, unused_tcp_port, session):
     expected = 'data: foo\r\nretry: 1\r\n\r\n'
     assert streamed_data == expected
 
-    srv.close()
-    await srv.wait_closed()
-    await handler.shutdown(0)
+    await runner.cleanup()
 
 
 @pytest.mark.asyncio
@@ -188,9 +188,8 @@ async def test_ping(loop, unused_tcp_port, session):
     app['socket'] = []
     app.router.add_route('GET', '/', func)
 
-    handler = app.make_handler(loop=loop)
-    srv = await loop.create_server(
-        handler, '127.0.0.1', unused_tcp_port)
+    host = '127.0.0.1'
+    runner = await make_runner(app, host, unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
     resp_task = asyncio.ensure_future(session.request('GET', url), loop=loop)
@@ -206,9 +205,7 @@ async def test_ping(loop, unused_tcp_port, session):
 
     expected = 'data: foo\r\n\r\n' + ': ping\r\n\r\n'
     assert streamed_data == expected
-    srv.close()
-    await srv.wait_closed()
-    await handler.shutdown(0)
+    await runner.cleanup()
 
 
 @pytest.mark.asyncio
@@ -226,9 +223,8 @@ async def test_context_manager(loop, unused_tcp_port, session):
     app.router.add_route('GET', '/', func)
     app.router.add_route('POST', '/', func)
 
-    handler = app.make_handler(loop=loop)
-    srv = await loop.create_server(
-        handler, '127.0.0.1', unused_tcp_port)
+    host = '127.0.0.1'
+    runner = await make_runner(app, host, unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
     resp = await session.request('GET', url)
@@ -245,9 +241,7 @@ async def test_context_manager(loop, unused_tcp_port, session):
                'id: xyz\r\nevent: bar\r\ndata: foo\r\n\r\n' \
                'id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n'
     assert streamed_data == expected
-    srv.close()
-    await srv.wait_closed()
-    await handler.shutdown(0)
+    await runner.cleanup()
 
 
 @pytest.mark.asyncio
@@ -284,9 +278,8 @@ async def test_custom_sep(loop, unused_tcp_port, session, sep):
     app = web.Application()
     app.router.add_route('GET', '/', func)
 
-    handler = app.make_handler(loop=loop)
-    srv = await loop.create_server(
-        handler, '127.0.0.1', unused_tcp_port)
+    host = '127.0.0.1'
+    runner = await make_runner(app, host, unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
     resp = await session.request('GET', url)
@@ -304,9 +297,7 @@ async def test_custom_sep(loop, unused_tcp_port, session, sep):
                'id: xyz{0}event: bar{0}data: foo{0}retry: 1{0}{0}'
 
     assert streamed_data == expected.format(sep)
-    srv.close()
-    await srv.wait_closed()
-    await handler.shutdown(0)
+    await runner.cleanup()
 
 
 @pytest.mark.asyncio
@@ -345,9 +336,8 @@ async def test_multiline_data(loop, unused_tcp_port, session, stream_sep,
     app = web.Application()
     app.router.add_route('GET', '/', func)
 
-    handler = app.make_handler(loop=loop)
-    srv = await loop.create_server(
-        handler, '127.0.0.1', unused_tcp_port)
+    host = '127.0.0.1'
+    runner = await make_runner(app, host, unused_tcp_port)
     url = "http://127.0.0.1:{}/".format(unused_tcp_port)
 
     resp = await session.request('GET', url)
@@ -367,6 +357,4 @@ async def test_multiline_data(loop, unused_tcp_port, session, stream_sep,
         'retry: 1{0}{0}'
     )
     assert streamed_data == expected.format(stream_sep)
-    srv.close()
-    await srv.wait_closed()
-    await handler.shutdown(0)
+    await runner.cleanup()
