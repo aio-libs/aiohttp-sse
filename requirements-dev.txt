@@ -1,6 +1,6 @@
 -e .
 flake8==3.7.5
-ipdb==0.11
+ipdb==0.12
 pytest==4.0.1
 pytest-asyncio==0.9.0
 pytest-cov==2.6.1
