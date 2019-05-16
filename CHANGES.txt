@@ -3,6 +3,7 @@ CHANGES
 
 2.1 (Undefined)
 ---------------
+* 163.misc Add explicit support for python3.7
 
 2.0 (2018-02-19)
 ----------------

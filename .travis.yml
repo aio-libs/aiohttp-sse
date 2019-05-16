@@ -1,3 +1,4 @@
+dist: xenial
 language: python
 
 matrix:
@@ -10,6 +11,10 @@ matrix:
           env: TOXENV=py36-aiohttp-3
         - python: 3.6
           env: TOXENV=py36-aiohttp-master
+        - python: 3.7
+          env: TOXENV=py37-aiohttp-3
+        - python: 3.7
+          env: TOXENV=py37-aiohttp-master
     allow_failures:
         - env: TOXENV=py35-aiohttp-master
         - env: TOXENV=py36-aiohttp-master
