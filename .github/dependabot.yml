@@ -1,0 +1,24 @@
+version: 2
+updates:
+- package-ecosystem: pip
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: pytest-asyncio
+    versions:
+    - 0.14.0
+    - 0.15.0
+  - dependency-name: flake8
+    versions:
+    - 3.8.4
+    - 3.9.0
+  - dependency-name: ipdb
+    versions:
+    - 0.13.4
+    - 0.13.5
+    - 0.13.6
+  - dependency-name: pytest
+    versions:
+    - 6.2.2
