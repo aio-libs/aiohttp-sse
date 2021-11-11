@@ -3,4 +3,4 @@ flake8==4.0.1
 ipdb==0.12
 pytest==4.6.2
 pytest-asyncio==0.16.0
-pytest-cov==2.7.1
+pytest-cov==3.0.0
