@@ -155,7 +155,7 @@ class EventSourceResponse(StreamResponse):
         # starts with ":" colon ignored by a browser and could be used
         # as ping message.
         while True:
-            await asyncio.sleep(self._ping_interval, loop=self._loop)
+            await asyncio.sleep(self._ping_interval)
             await self.write(': ping{0}{0}'.format(self._sep).encode('utf-8'))
 
     async def __aenter__(self):
