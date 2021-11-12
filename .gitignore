@@ -58,3 +58,5 @@ target/
 
 coverage/
 cover/
+
+.python-version
