@@ -40,7 +40,6 @@ class EventSourceResponse(StreamResponse):
         self.headers["Connection"] = "keep-alive"
         self.headers["X-Accel-Buffering"] = "no"
 
-        self._loop = None
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
@@ -59,8 +58,7 @@ class EventSourceResponse(StreamResponse):
 
         if not self.prepared:
             writer = await super().prepare(request)
-            self._loop = request.app.loop
-            self._ping_task = self._loop.create_task(self._ping())
+            self._ping_task = asyncio.create_task(self._ping())
             # explicitly enabling chunked encoding, since content length
             # usually not known beforehand.
             self.enable_chunked_encoding()
