@@ -1,31 +1,29 @@
+=======
 CHANGES
 =======
 
-2.1 (Undefined)
----------------
-* 163.misc Add explicit support for python3.7
-* 314.bugfix Added Python 3.10 support
+.. towncrier release notes start
 
-2.0 (2018-02-19)
-----------------
+2.0.0 (2018-02-19)
+==================
 * Drop aiohttp < 3 support
 * ``EventSourceResponse.send`` is now a coroutine.
 
 1.1.0 (2017-08-21)
-------------------
+==================
 
 * Drop python 3.4 support
 * Add new context manager API
 
 
 1.0.0 (2017-04-14)
-------------------
+==================
 
 * Release aiohttp-sse==1.0.0
 
 
 0.1.0 (2017-03-23)
-------------------
+==================
 
 * add support for asynchronous context manager interface
 * tests refactoring
@@ -33,12 +31,12 @@ CHANGES
 
 
 0.0.2 (2017-01-13)
-------------------
+==================
 
 * Added MANIFEST.in
 
 
 0.0.1 (2017-01-13)
-------------------
+==================
 
 * Initial release
