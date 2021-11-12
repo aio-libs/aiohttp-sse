@@ -18,7 +18,7 @@ def loop(event_loop, debug):
 @pytest.fixture
 def session(loop):
     async def create_session(loop):
-        return aiohttp.ClientSession(loop=loop)
+        return aiohttp.ClientSession()
 
     session = loop.run_until_complete(create_session(loop))
     yield session

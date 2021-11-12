@@ -95,9 +95,9 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
     runner = await make_runner(app, host, unused_tcp_port)
     url = f"http://127.0.0.1:{unused_tcp_port}/"
 
-    resp_task = asyncio.ensure_future(session.request("GET", url), loop=loop)
+    resp_task = asyncio.create_task(session.request("GET", url))
 
-    await asyncio.sleep(0.1, loop=loop)
+    await asyncio.sleep(0.1)
     esourse = app["socket"][0]
     esourse.stop_streaming()
     await esourse.wait()
@@ -195,9 +195,9 @@ async def test_ping(loop, unused_tcp_port, session):
     runner = await make_runner(app, host, unused_tcp_port)
     url = f"http://127.0.0.1:{unused_tcp_port}/"
 
-    resp_task = asyncio.ensure_future(session.request("GET", url), loop=loop)
+    resp_task = asyncio.create_task(session.request("GET", url))
 
-    await asyncio.sleep(1.15, loop=loop)
+    await asyncio.sleep(1.15)
     esourse = app["socket"][0]
     esourse.stop_streaming()
     await esourse.wait()

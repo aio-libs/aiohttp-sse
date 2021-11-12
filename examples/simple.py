@@ -8,14 +8,13 @@ from aiohttp_sse import sse_response
 
 
 async def hello(request):
-    loop = request.app.loop
     async with sse_response(request) as resp:
         while True:
             time_dict = {"time": f"Server Time : {datetime.now()}"}
             data = json.dumps(time_dict, indent=2)
             print(data)
             await resp.send(data)
-            await asyncio.sleep(1, loop=loop)
+            await asyncio.sleep(1)
     return resp
 
 

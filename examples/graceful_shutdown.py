@@ -29,7 +29,7 @@ class SSEResponse(EventSourceResponse):
 async def worker(app):
     while True:
         now = datetime.now()
-        delay = asyncio.ensure_future(asyncio.sleep(1, loop=app.loop))  # Fire
+        delay = asyncio.create_task(asyncio.sleep(1))  # Fire
 
         fs = []
         for stream in app["streams"]:
@@ -40,7 +40,7 @@ async def worker(app):
             fs.append(stream.send_json(data, id=now.timestamp()))
 
         # Run in parallel
-        await asyncio.gather(*fs, loop=app.loop)
+        await asyncio.gather(*fs)
 
         # Sleep 1s - n
         await delay
@@ -63,7 +63,7 @@ async def on_shutdown(app):
         stream.stop_streaming()
         waiters.append(stream.wait())
 
-    await asyncio.gather(*waiters, loop=app.loop)
+    await asyncio.gather(*waiters)
     app["streams"].clear()
 
 

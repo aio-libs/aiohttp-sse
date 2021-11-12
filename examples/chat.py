@@ -110,7 +110,7 @@ async def subscribe(request):
 
 
 loop = asyncio.get_event_loop()
-app = Application(loop=loop)
+app = Application()
 app["channels"] = set()
 
 app.router.add_route("GET", "/chat", chat)

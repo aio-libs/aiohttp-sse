@@ -52,7 +52,7 @@ Example
                 data = 'Server Time : {}'.format(datetime.now())
                 print(data)
                 await resp.send(data)
-                await asyncio.sleep(1, loop=loop)
+                await asyncio.sleep(1)
         return resp
 
 
