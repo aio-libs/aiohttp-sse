@@ -1,7 +1,9 @@
 import asyncio
 import json
+
 from aiohttp import web
 from aiohttp.web import Application, Response
+
 from aiohttp_sse import sse_response
 
 
@@ -75,7 +77,7 @@ def chat(request):
     </html>
 
     """
-    resp = Response(text=d, content_type='text/html')
+    resp = Response(text=d, content_type="text/html")
 
     return resp
 
@@ -84,7 +86,7 @@ async def message(request):
     app = request.app
     data = await request.post()
 
-    for queue in app['channels']:
+    for queue in app["channels"]:
         payload = json.dumps(dict(data))
         await queue.put(payload)
     return Response()
@@ -94,24 +96,24 @@ async def subscribe(request):
     async with sse_response(request) as response:
         app = request.app
         queue = asyncio.Queue()
-        print('Someone joined.')
-        app['channels'].add(queue)
+        print("Someone joined.")
+        app["channels"].add(queue)
         try:
             while not response.task.done():
                 payload = await queue.get()
                 await response.send(payload)
                 queue.task_done()
         finally:
-            app['channels'].remove(queue)
-            print('Someone left.')
+            app["channels"].remove(queue)
+            print("Someone left.")
     return response
 
 
 loop = asyncio.get_event_loop()
 app = Application(loop=loop)
-app['channels'] = set()
+app["channels"] = set()
 
-app.router.add_route('GET', '/chat', chat)
-app.router.add_route('POST', '/everyone', message)
-app.router.add_route('GET', '/subscribe', subscribe)
-web.run_app(app, host='127.0.0.1', port=8080)
+app.router.add_route("GET", "/chat", chat)
+app.router.add_route("POST", "/everyone", message)
+app.router.add_route("GET", "/subscribe", subscribe)
+web.run_app(app, host="127.0.0.1", port=8080)

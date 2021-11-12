@@ -1,9 +1,10 @@
-import pytest
 import aiohttp
+import pytest
 
 
-@pytest.fixture(scope="session", params=[True, False],
-                ids=['debug:true', 'debug:false'])
+@pytest.fixture(
+    scope="session", params=[True, False], ids=["debug:true", "debug:false"]
+)
 def debug(request):
     return request.param
 
@@ -16,7 +17,6 @@ def loop(event_loop, debug):
 
 @pytest.fixture
 def session(loop):
-
     async def create_session(loop):
         return aiohttp.ClientSession(loop=loop)
 

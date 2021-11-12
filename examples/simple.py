@@ -11,7 +11,7 @@ async def hello(request):
     loop = request.app.loop
     async with sse_response(request) as resp:
         while True:
-            time_dict = {'time': 'Server Time : {}'.format(datetime.now())}
+            time_dict = {"time": f"Server Time : {datetime.now()}"}
             data = json.dumps(time_dict, indent=2)
             print(data)
             await resp.send(data)
@@ -38,11 +38,11 @@ async def index(request):
         </body>
     </html>
     """
-    return web.Response(text=d, content_type='text/html')
+    return web.Response(text=d, content_type="text/html")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = web.Application()
-    app.router.add_route('GET', '/hello', hello)
-    app.router.add_route('GET', '/index', index)
-    web.run_app(app, host='127.0.0.1', port=8080)
+    app.router.add_route("GET", "/hello", hello)
+    app.router.add_route("GET", "/index", index)
+    web.run_app(app, host="127.0.0.1", port=8080)

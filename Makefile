@@ -1,12 +1,15 @@
 # Some simple testing tasks (sorry, UNIX only).
 
-flake:
-	flake8 aiohttp_sse tests examples setup.py
+setup:
+	pip install -r requirements-dev.txt
+	pre-commit install
+lint:
+	pre-commit run --all-files
 
-test: flake
+test:
 	pytest -sv tests/
 
-cov cover coverage: flake
+cov cover coverage:
 	pytest -sv tests/ --cov=aiohttp_sse --cov-report=html
 	@echo "open file://`pwd`/htmlcov/index.html"
 
