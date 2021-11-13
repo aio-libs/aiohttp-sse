@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       uses: py-actions/py-dependency-install@v2
       with:
-        path: requirements/lint.txt
+        path: requirements-dev.txt
     - name: Run linters
       run: |
         make lint
