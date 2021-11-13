@@ -109,10 +109,13 @@ jobs:
     - name: Install dependencies
       uses: py-actions/py-dependency-install@v2
       with:
-        path: requirements/prod.txt
+        path: requirements-dev.txt
+    - name: Update build deps
+      run: |
+        pip install -U build twine
     - name: Build dists
       run: |
-        flit build
+        python -m build
     - name: Make Release
       uses: aio-libs/create-release@v1.2.3
       with:
