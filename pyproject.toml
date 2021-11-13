@@ -13,7 +13,7 @@ exclude = '''
 '''
 
 [tool.towncrier]
-package = "aiohttp-sse"
+package = "aiohttp_sse"
 filename = "CHANGES.rst"
 directory = "CHANGES/"
 title_format = "{version} ({project_date})"
