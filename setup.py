@@ -45,7 +45,7 @@ setup(
     name="aiohttp-sse",
     version=read_version(),
     description=("Server-sent events  support for aiohttp."),
-    lond_description="\n\n".join((read("README.rst"), read("CHANGES.txt"))),
+    lond_description=read("README.rst"),
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
         "Intended Audience :: Developers",
