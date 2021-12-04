@@ -40,7 +40,6 @@ Example
 
 
     async def hello(request):
-        loop = request.app.loop
         async with sse_response(request) as resp:
             while True:
                 data = 'Server Time : {}'.format(datetime.now())
