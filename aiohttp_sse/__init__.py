@@ -154,7 +154,10 @@ class EventSourceResponse(StreamResponse):
         # as ping message.
         while True:
             await asyncio.sleep(self._ping_interval)
-            await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
+            try:
+                await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
+            except ConnectionResetError:
+                self._ping_task.cancel()
 
     async def __aenter__(self):
         return self
