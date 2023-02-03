@@ -38,9 +38,8 @@ jobs:
       run: |
         make lint
 
-  unit:
-    name: Unit
-    needs: [lint]
+  test:
+    name: Test
     strategy:
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10']
@@ -68,7 +67,7 @@ jobs:
     - name: Install dependencies
       uses: py-actions/py-dependency-install@v3.0.0
       with:
-        path: requirements-dev.txt
+        path: requirements.txt
     - name: Install itself
       run: |
         pip install .
@@ -85,14 +84,17 @@ jobs:
         fail_ci_if_error: false
 
   check:  # This job does nothing and is only used for the branch protection
-    name: CI Checks
-    needs: [lint, unit]
+    if: always()
+
+    needs: [lint, test]
+
     runs-on: ubuntu-latest
+
     steps:
-      - name: Report success of the test matrix
-        run: |
-          print("All's good")
-        shell: python
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
 
   deploy:
     name: Deploy on PyPI
