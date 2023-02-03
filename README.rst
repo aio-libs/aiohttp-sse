@@ -46,7 +46,6 @@ Example
                 print(data)
                 await resp.send(data)
                 await asyncio.sleep(1)
-        return resp
 
 
     async def index(request):
