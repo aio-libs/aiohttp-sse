@@ -1,0 +1,5 @@
+-e .
+aiohttp==3.8.3
+pytest==7.2.1
+pytest-asyncio==0.20.3
+pytest-cov==4.0.0
