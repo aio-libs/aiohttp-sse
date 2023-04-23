@@ -44,6 +44,11 @@ class EventSourceResponse(StreamResponse):
         self._ping_task = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
 
+    @property
+    def is_connected(self):
+        """Check connection is prepared and ping task is not done."""
+        return self.prepared and not self._ping_task.done()
+
     async def _prepare(self, request):
         await self.prepare(request)
         return self
