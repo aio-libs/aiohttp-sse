@@ -399,7 +399,6 @@ async def test_multiline_data(loop, unused_tcp_port, session, stream_sep, line_s
 @pytest.mark.asyncio
 async def test_connection_is_not_alive(loop, unused_tcp_port, session):
     async def func(request):
-
         # within context manager first preparation is already done
         async with sse_response(request) as resp:  # type: EventSourceResponse
             resp.ping_interval = 1
