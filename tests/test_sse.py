@@ -399,11 +399,19 @@ async def test_multiline_data(loop, unused_tcp_port, session, stream_sep, line_s
 @pytest.mark.asyncio
 async def test_connection_is_not_alive(loop, unused_tcp_port, session):
     async def func(request):
+
+        # within context manager first preparation is already done
         async with sse_response(request) as resp:  # type: EventSourceResponse
             resp.ping_interval = 1
+
+            # we should sleep to switch asyncio Task
+            # and let connection to be closed
             await asyncio.sleep(0.1)
+
+            # this call should be cancelled, cause connection is closed
             await resp.prepare(request)
-            return resp
+
+            return resp  # pragma: no cover
 
     app = web.Application()
     app.router.add_route("GET", "/", func)
@@ -411,7 +419,7 @@ async def test_connection_is_not_alive(loop, unused_tcp_port, session):
     host = "127.0.0.1"
     runner = await make_runner(app, host, unused_tcp_port)
 
-    async with session.request("GET", f"http://{host}:{unused_tcp_port}/") as resp:
-        resp.close()
+    async with session.get(f"http://{host}:{unused_tcp_port}/") as resp:
+        assert resp.status == 200
 
     await runner.cleanup()
