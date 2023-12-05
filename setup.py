@@ -57,6 +57,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Topic :: Internet :: WWW/HTTP",
         "Framework :: AsyncIO",
+        "Framework :: aiohttp",
     ],
     author="Nikolay Novik",
     author_email="nickolainovik@gmail.com",
