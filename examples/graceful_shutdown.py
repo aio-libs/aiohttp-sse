@@ -63,7 +63,7 @@ async def on_shutdown(app):
         stream.stop_streaming()
         waiters.append(stream.wait())
 
-    await asyncio.gather(*waiters)
+    await asyncio.gather(*waiters, return_exceptions=True)
     app["streams"].clear()
 
 
