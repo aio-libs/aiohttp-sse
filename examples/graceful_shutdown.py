@@ -39,8 +39,8 @@ async def worker(app):
             }
             fs.append(stream.send_json(data, id=now.timestamp()))
 
-        # Run in parallel
-        await asyncio.gather(*fs)
+        # Run in parallel and don't fail even on delivery exception
+        await asyncio.gather(*fs, return_exceptions=True)
 
         # Sleep 1s - n
         await delay
