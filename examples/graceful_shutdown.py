@@ -48,7 +48,7 @@ async def worker(app):
 
 async def on_startup(app):
     app["streams"] = weakref.WeakSet()
-    app["worker"] = app.loop.create_task(worker(app))
+    app["worker"] = asyncio.create_task(worker(app))
 
 
 async def clean_up(app):
