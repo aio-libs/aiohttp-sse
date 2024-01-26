@@ -1,4 +1,5 @@
 import asyncio
+from typing import List
 
 import pytest
 from aiohttp import web
@@ -6,7 +7,7 @@ from aiohttp.test_utils import make_mocked_request
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
-socket = web.AppKey("socket", list[EventSourceResponse])
+socket = web.AppKey("socket", List[EventSourceResponse])
 
 
 async def make_runner(app, host, port):
