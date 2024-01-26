@@ -455,7 +455,8 @@ async def test_connection_is_not_alive(unused_tcp_port, session):
 
             # we should sleep to switch asyncio Task
             # and let connection to be closed
-            await asyncio.sleep(0.1)
+            while resp.is_connected():
+                await asyncio.sleep(0.01)
 
             # this call should be cancelled, cause connection is closed
             with pytest.raises(asyncio.CancelledError):
