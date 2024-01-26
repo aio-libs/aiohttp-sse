@@ -11,10 +11,6 @@ from aiohttp_sse import EventSourceResponse, sse_response
 
 
 class SSEResponse(EventSourceResponse):
-    @property
-    def last_event_id(self):
-        return self._req.headers.get("Last-Event-Id")
-
     async def send_json(
         self,
         data,
