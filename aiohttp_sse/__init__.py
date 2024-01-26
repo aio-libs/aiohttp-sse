@@ -46,6 +46,10 @@ class EventSourceResponse(StreamResponse):
         self._ping_task = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
 
+    def is_connected(self) -> bool:
+        """Check connection is prepared and ping task is not done."""
+        return self.prepared and not self._ping_task.done()
+
     async def _prepare(self, request):
         await self.prepare(request)
         return self
@@ -165,7 +169,10 @@ class EventSourceResponse(StreamResponse):
         # as ping message.
         while True:
             await asyncio.sleep(self._ping_interval)
-            await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
+            try:
+                await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
+            except ConnectionResetError:
+                self._ping_task.cancel()
 
     async def __aenter__(self):
         return self
