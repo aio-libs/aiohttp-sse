@@ -2,16 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+      - '[0-9].[0-9]+'  # matches to backport branches, e.g. 3.6
     tags: [ 'v*' ]
   pull_request:
-    branches: [ master ]
-  schedule:
-    - cron:  '0 6 * * *'  # Daily 6AM UTC build
-
+    branches:
+      - master
+      - '[0-9].[0-9]+'
 
 jobs:
-
   lint:
     name: Linter
     runs-on: ubuntu-latest
@@ -20,18 +20,15 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Setup Python
-      uses: actions/setup-python@v2
-    - name: Cache PyPI
-      uses: actions/cache@v2
+      uses: actions/setup-python@v5
       with:
-        key: pip-lint-${{ hashFiles('requirements-dev.txt') }}
-        path: ~/.cache/pip
-        restore-keys: |
-            pip-lint-
+        python-version: 3.11
+        cache: 'pip'
+        cache-dependency-path: '**/requirements*.txt'
     - name: Install dependencies
-      uses: py-actions/py-dependency-install@v3.0.0
+      uses: py-actions/py-dependency-install@v4
       with:
         path: requirements-dev.txt
     - name: Run linters
@@ -42,30 +39,21 @@ jobs:
     name: Test
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10']
+        pyver: ['3.8', '3.9', '3.10', '3.11', '3.12']
         os: [ubuntu, macos, windows]
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 10
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
-    - name: Setup Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/checkout@v4
+    - name: Setup Python ${{ matrix.pyver }}
+      uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
-    - name: Get pip cache dir
-      id: pip-cache
-      run: |
-        echo "::set-output name=dir::$(pip cache dir)"    # - name: Cache
-    - name: Cache PyPI
-      uses: actions/cache@v2
-      with:
-        key: pip-ci-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('requirements/*.txt') }}
-        path: ${{ steps.pip-cache.outputs.dir }}
-        restore-keys: |
-            pip-ci-${{ runner.os }}-${{ matrix.python-version }}-
+        python-version: ${{ matrix.pyver }}
+        cache: 'pip'
+        cache-dependency-path: '**/requirements*.txt'
     - name: Install dependencies
-      uses: py-actions/py-dependency-install@v3.0.0
+      uses: py-actions/py-dependency-install@v4
       with:
         path: requirements.txt
     - name: Install itself
@@ -76,20 +64,16 @@ jobs:
         COLOR: 'yes'
       run: |
         make test
+    - run: python -m coverage xml
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
-        file: ./coverage.xml
-        flags: unit
-        fail_ci_if_error: false
+        fail_ci_if_error: true
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
-
     needs: [lint, test]
-
     runs-on: ubuntu-latest
-
     steps:
     - name: Decide whether the needed jobs succeeded or failed
       uses: re-actors/alls-green@release/v1
@@ -105,11 +89,13 @@ jobs:
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Setup Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
     - name: Install dependencies
-      uses: py-actions/py-dependency-install@v3.0.0
+      uses: py-actions/py-dependency-install@v4
       with:
         path: requirements-dev.txt
     - name: Update build deps
@@ -119,7 +105,7 @@ jobs:
       run: |
         python -m build
     - name: Make Release
-      uses: aio-libs/create-release@v1.2.3
+      uses: aio-libs/create-release@v1.6.6
       with:
         changes_file: CHANGES.rst
         name: aiohttp-sse

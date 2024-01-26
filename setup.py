@@ -7,8 +7,8 @@ from setuptools import find_packages, setup
 
 PY_VER = sys.version_info
 
-if not PY_VER >= (3, 5):
-    raise RuntimeError("aiohttp-sse doesn't support Python earlier than 3.5")
+if not PY_VER >= (3, 8):
+    raise RuntimeError("aiohttp-sse doesn't support Python earlier than 3.8")
 
 
 def read(f):
@@ -51,10 +51,11 @@ setup(
         "Intended Audience :: Developers",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Internet :: WWW/HTTP",
         "Framework :: AsyncIO",
         "Framework :: aiohttp",
@@ -63,7 +64,7 @@ setup(
     author_email="nickolainovik@gmail.com",
     url="https://github.com/aio-libs/aiohttp_sse/",
     license="Apache 2",
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     packages=find_packages(),
     install_requires=install_requires,
     include_package_data=True,
