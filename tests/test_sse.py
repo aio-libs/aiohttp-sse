@@ -400,7 +400,7 @@ async def test_multiline_data(loop, unused_tcp_port, session, stream_sep, line_s
 class TestLastEventId:
     async def test_success(self, unused_tcp_port, session):
         async def func(request):
-            async with sse_response(request) as sse:  # type: EventSourceResponse
+            async with sse_response(request) as sse:
                 await sse.send(sse.last_event_id)
             return sse
 
