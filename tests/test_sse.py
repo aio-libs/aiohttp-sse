@@ -388,3 +388,34 @@ async def test_multiline_data(loop, unused_tcp_port, session, stream_sep, line_s
     )
     assert streamed_data == expected.format(stream_sep)
     await runner.cleanup()
+
+
+@pytest.mark.asyncio
+class TestLastEventId:
+    async def test_success(self, unused_tcp_port, session):
+        async def func(request):
+            async with sse_response(request) as sse:
+                await sse.send(sse.last_event_id)
+            return sse
+
+        app = web.Application()
+        app.router.add_route("GET", "/", func)
+
+        host = "127.0.0.1"
+        runner = await make_runner(app, host, unused_tcp_port)
+        url = f"http://{host}:{unused_tcp_port}/"
+
+        last_event_id = "42"
+        headers = {EventSourceResponse.DEFAULT_LAST_EVENT_HEADER: last_event_id}
+        resp = await session.request("GET", url, headers=headers)
+        assert resp.status == 200
+
+        # check streamed data
+        streamed_data = await resp.text()
+        assert streamed_data == f"data: {last_event_id}\r\n\r\n"
+        await runner.cleanup()
+
+    async def test_get_before_prepare(self):
+        sse = EventSourceResponse()
+        with pytest.raises(RuntimeError):
+            _ = sse.last_event_id

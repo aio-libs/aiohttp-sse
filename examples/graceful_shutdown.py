@@ -14,10 +14,6 @@ worker = web.AppKey("worker", asyncio.Task[None])
 
 
 class SSEResponse(EventSourceResponse):
-    @property
-    def last_event_id(self):
-        return self._req.headers.get("Last-Event-Id")
-
     async def send_json(
         self,
         data,
