@@ -9,6 +9,9 @@ from aiohttp import web
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
+streams = web.AppKey("streams", weakref.WeakSet[EventSourceResponse])
+worker = web.AppKey("worker", asyncio.Task[None])
+
 
 class SSEResponse(EventSourceResponse):
     @property
@@ -32,7 +35,7 @@ async def worker(app):
         delay = asyncio.create_task(asyncio.sleep(1))  # Fire
 
         fs = []
-        for stream in app["streams"]:
+        for stream in app[streams]:
             data = {
                 "time": f"Server Time : {now}",
                 "last_event_id": stream.last_event_id,
@@ -47,33 +50,33 @@ async def worker(app):
 
 
 async def on_startup(app):
-    app["streams"] = weakref.WeakSet()
-    app["worker"] = app.loop.create_task(worker(app))
+    app[streams] = weakref.WeakSet()
+    app[worker] = app.loop.create_task(worker(app))
 
 
 async def clean_up(app):
-    app["worker"].cancel()
+    app[worker].cancel()
     with suppress(asyncio.CancelledError):
-        await app["worker"]
+        await app[worker]
 
 
 async def on_shutdown(app):
     waiters = []
-    for stream in app["streams"]:
+    for stream in app[streams]:
         stream.stop_streaming()
         waiters.append(stream.wait())
 
     await asyncio.gather(*waiters)
-    app["streams"].clear()
+    app[streams].clear()
 
 
 async def hello(request):
     stream = await sse_response(request, response_cls=SSEResponse)
-    request.app["streams"].add(stream)
+    request.app[streams].add(stream)
     try:
         await stream.wait()
     finally:
-        request.app["streams"].discard(stream)
+        request.app[streams].discard(stream)
     return stream
 
 
