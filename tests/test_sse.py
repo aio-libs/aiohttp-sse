@@ -401,7 +401,8 @@ async def test_connection_is_not_alive(unused_tcp_port, session):
             await asyncio.sleep(0.1)
 
             # this call should be cancelled, cause connection is closed
-            await resp.prepare(request)
+            with pytest.raises(asyncio.CancelledError):
+                await resp.prepare(request)
 
             return resp  # pragma: no cover
 
