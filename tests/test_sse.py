@@ -233,12 +233,12 @@ async def test_ping_reset(unused_tcp_port, session):
     resp_task = asyncio.create_task(session.request("GET", url))
 
     await asyncio.sleep(1.15)
-    esourse = app[socket][0]
+    esource = app[socket][0]
 
     def reset_error_write(data):
         raise ConnectionResetError("Cannot write to closing transport")
 
-    esourse.write = reset_error_write
+    esource.write = reset_error_write
     await esource.wait()
     assert esource._ping_task.cancelled()
     resp = await resp_task
