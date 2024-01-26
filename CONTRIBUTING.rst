@@ -13,11 +13,11 @@ Fist of all just clone repository::
 
     $ git clone git@github.com:aio-libs/aiohttp-sse.git
 
-Create virtualenv with python 3.5 or 3.6. For example
+Create virtualenv with python. For example
 using *virtualenvwrapper* commands could look like::
 
    $ cd aiohttp-sse
-   $ mkvirtualenv --python=`which python3.5` aiohttp-sse
+   $ mkvirtualenv --python=`which python3.12` aiohttp-sse
 
 
 After that please install libraries required for development::
