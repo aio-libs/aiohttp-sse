@@ -1,6 +1,5 @@
 import aiohttp
 import pytest
-import pytest_asyncio
 
 
 @pytest.fixture(
@@ -16,7 +15,7 @@ def loop(event_loop, debug):
     return event_loop
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 async def session():
     async with aiohttp.ClientSession() as session:
         yield session
