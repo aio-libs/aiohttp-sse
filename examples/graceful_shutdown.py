@@ -54,6 +54,7 @@ async def worker(app):
             )
             fs.append(coro)
 
+        # Run in parallel
         await asyncio.gather(*fs)
 
         # Sleep 1s - n
