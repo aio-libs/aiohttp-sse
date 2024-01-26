@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import weakref
 from contextlib import suppress
 from datetime import datetime
@@ -28,7 +29,7 @@ class SSEResponse(EventSourceResponse):
 async def send_event(stream, data, event_id):
     try:
         await stream.send_json(data, id=str(event_id))
-    except Exception as exc:
+    except Exception:
         logging.exception("Exception when sending event: %s", event_id)
 
 
