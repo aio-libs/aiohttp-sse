@@ -111,7 +111,6 @@ async def subscribe(request):
     return response
 
 
-loop = asyncio.get_event_loop()
 app = Application()
 app[channels] = set()
 
