@@ -64,6 +64,7 @@ jobs:
         COLOR: 'yes'
       run: |
         make test
+    - run: python -m coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v3
       with:
