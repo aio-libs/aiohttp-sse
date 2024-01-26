@@ -6,6 +6,8 @@ from aiohttp.web import Application, Response
 
 from aiohttp_sse import sse_response
 
+channels = web.AppKey("channels", set[asyncio.Queue])
+
 
 def chat(request):
     d = """
@@ -86,7 +88,7 @@ async def message(request):
     app = request.app
     data = await request.post()
 
-    for queue in app["channels"]:
+    for queue in app[channels]:
         payload = json.dumps(dict(data))
         await queue.put(payload)
     return Response()
@@ -97,20 +99,20 @@ async def subscribe(request):
         app = request.app
         queue = asyncio.Queue()
         print("Someone joined.")
-        app["channels"].add(queue)
+        app[channels].add(queue)
         try:
             while not response.task.done():
                 payload = await queue.get()
                 await response.send(payload)
                 queue.task_done()
         finally:
-            app["channels"].remove(queue)
+            app[channels].remove(queue)
             print("Someone left.")
     return response
 
 
 app = Application()
-app["channels"] = set()
+app[channels] = set()
 
 app.router.add_route("GET", "/chat", chat)
 app.router.add_route("POST", "/everyone", message)
