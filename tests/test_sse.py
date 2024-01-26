@@ -390,7 +390,23 @@ async def test_multiline_data(loop, unused_tcp_port, session, stream_sep, line_s
     await runner.cleanup()
 
 
-@pytest.mark.asyncio
+async def test_sse_state(unused_tcp_port, session):
+    async def func(request):
+        async with sse_response(request) as resp:
+            assert resp.is_connected()
+
+        assert not resp.is_connected()
+        return resp
+
+    app = web.Application()
+    app.router.add_route("GET", "/", func)
+
+    host = "127.0.0.1"
+    runner = await make_runner(app, host, unused_tcp_port)
+    await session.request("GET", f"http://{host}:{unused_tcp_port}/")
+    await runner.cleanup()
+
+
 class TestLastEventId:
     async def test_success(self, unused_tcp_port, session):
         async def func(request):
