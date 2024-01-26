@@ -26,6 +26,16 @@ class SSEResponse(EventSourceResponse):
         await self.send(json_dumps(data), id=id, event=event, retry=retry)
 
 
+async def send_event(stream, data, event_id):
+    try:
+        await stream.send_json(data, id=str(event_id))
+    except Exception as exc:
+        print(
+            f"Got an exception with event {event_id}, "
+            f"cause {type(exc).__name__}: {exc}"
+        )
+
+
 async def worker(app):
     while True:
         now = datetime.now()
@@ -37,10 +47,14 @@ async def worker(app):
                 "time": f"Server Time : {now}",
                 "last_event_id": stream.last_event_id,
             }
-            fs.append(stream.send_json(data, id=now.timestamp()))
+            coro = send_event(
+                stream=stream,
+                data=data,
+                event_id=now.timestamp(),
+            )
+            fs.append(coro)
 
-        # Run in parallel and don't fail even on delivery exception
-        await asyncio.gather(*fs, return_exceptions=True)
+        await asyncio.gather(*fs)
 
         # Sleep 1s - n
         await delay
