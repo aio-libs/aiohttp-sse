@@ -6,6 +6,8 @@ from aiohttp.test_utils import make_mocked_request
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
+socket = web.AppKey("socket", list[EventSourceResponse])
+
 
 async def make_runner(app, host, port):
     runner = web.AppRunner(app)
@@ -81,12 +83,12 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
         resp = EventSourceResponse()
         await resp.prepare(request)
         await resp.send("foo", event="bar", id="xyz", retry=1)
-        app["socket"].append(resp)
+        app[socket].append(resp)
         await resp.wait()
         return resp
 
     app = web.Application()
-    app["socket"] = []
+    app[socket] = []
     app.router.add_route("GET", "/", func)
 
     host = "127.0.0.1"
@@ -96,7 +98,7 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
     resp_task = asyncio.create_task(session.request("GET", url))
 
     await asyncio.sleep(0.1)
-    esourse = app["socket"][0]
+    esourse = app[socket][0]
     esourse.stop_streaming()
     await esourse.wait()
     resp = await resp_task
@@ -178,12 +180,12 @@ async def test_ping(loop, unused_tcp_port, session):
         resp.ping_interval = 1
         await resp.prepare(request)
         await resp.send("foo")
-        app["socket"].append(resp)
+        app[socket].append(resp)
         await resp.wait()
         return resp
 
     app = web.Application()
-    app["socket"] = []
+    app[socket] = []
     app.router.add_route("GET", "/", func)
 
     host = "127.0.0.1"
@@ -193,7 +195,7 @@ async def test_ping(loop, unused_tcp_port, session):
     resp_task = asyncio.create_task(session.request("GET", url))
 
     await asyncio.sleep(1.15)
-    esourse = app["socket"][0]
+    esourse = app[socket][0]
     esourse.stop_streaming()
     await esourse.wait()
     resp = await resp_task
