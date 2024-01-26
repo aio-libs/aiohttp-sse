@@ -390,10 +390,10 @@ async def test_multiline_data(loop, unused_tcp_port, session, stream_sep, line_s
     await runner.cleanup()
 
 
-async def test_connection_is_not_alive(loop, unused_tcp_port, session):
+async def test_connection_is_not_alive(unused_tcp_port, session):
     async def func(request):
         # within context manager first preparation is already done
-        async with sse_response(request) as resp:  # type: EventSourceResponse
+        async with sse_response(request) as resp:
             resp.ping_interval = 1
 
             # we should sleep to switch asyncio Task
