@@ -175,7 +175,6 @@ def test_ping_property():
 
 
 async def test_ping(unused_tcp_port, session):
-
     async def func(request):
         app = request.app
         resp = EventSourceResponse()
