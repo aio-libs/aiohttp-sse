@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import weakref
 from contextlib import suppress
 from datetime import datetime
@@ -25,6 +26,13 @@ class SSEResponse(EventSourceResponse):
         await self.send(json_dumps(data), id=id, event=event, retry=retry)
 
 
+async def send_event(stream, data, event_id):
+    try:
+        await stream.send_json(data, id=str(event_id))
+    except Exception:
+        logging.exception("Exception when sending event: %s", event_id)
+
+
 async def worker(app):
     while True:
         now = datetime.now()
@@ -36,7 +44,8 @@ async def worker(app):
                 "time": f"Server Time : {now}",
                 "last_event_id": stream.last_event_id,
             }
-            fs.append(stream.send_json(data, id=now.timestamp()))
+            coro = send_event(stream, data, now.timestamp())
+            fs.append(coro)
 
         # Run in parallel
         await asyncio.gather(*fs)
@@ -62,7 +71,7 @@ async def on_shutdown(app):
         stream.stop_streaming()
         waiters.append(stream.wait())
 
-    await asyncio.gather(*waiters)
+    await asyncio.gather(*waiters, return_exceptions=True)
     app[streams].clear()
 
 
