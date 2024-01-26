@@ -21,7 +21,7 @@ async def make_runner(app, host, port):
     (False, True),
     ids=("without_sse_response", "with_sse_response"),
 )
-async def test_func(loop, unused_tcp_port, with_sse_response, session):
+async def test_func(unused_tcp_port, with_sse_response, session):
     async def func(request):
         if with_sse_response:
             resp = await sse_response(request, headers={"X-SSE": "aiohttp_sse"})
@@ -77,7 +77,7 @@ async def test_func(loop, unused_tcp_port, with_sse_response, session):
 
 
 @pytest.mark.asyncio
-async def test_wait_stop_streaming(loop, unused_tcp_port, session):
+async def test_wait_stop_streaming(unused_tcp_port, session):
     async def func(request):
         app = request.app
         resp = EventSourceResponse()
@@ -113,12 +113,12 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
 
 
 @pytest.mark.asyncio
-async def test_retry(loop, unused_tcp_port, session):
+async def test_retry(unused_tcp_port, session):
     async def func(request):
         resp = EventSourceResponse()
         await resp.prepare(request)
         with pytest.raises(TypeError):
-            await resp.send("foo", retry="one")
+            await resp.send("foo", retry="one")  # type: ignore
         await resp.send("foo", retry=1)
         resp.stop_streaming()
         await resp.wait()
@@ -160,7 +160,7 @@ def test_compression_not_implemented():
         response.enable_compression()
 
 
-def test_ping_property(loop):
+def test_ping_property():
     response = EventSourceResponse()
     default = response.DEFAULT_PING_INTERVAL
     assert response.ping_interval == default
@@ -176,7 +176,7 @@ def test_ping_property(loop):
 
 
 @pytest.mark.asyncio
-async def test_ping(loop, unused_tcp_port, session):
+async def test_ping(unused_tcp_port, session):
     async def func(request):
         app = request.app
         resp = EventSourceResponse()
@@ -212,7 +212,7 @@ async def test_ping(loop, unused_tcp_port, session):
 
 
 @pytest.mark.asyncio
-async def test_context_manager(loop, unused_tcp_port, session):
+async def test_context_manager(unused_tcp_port, session):
     async def func(request):
         h = {"X-SSE": "aiohttp_sse"}
         async with sse_response(request, headers=h) as sse:
@@ -268,7 +268,7 @@ async def test_custom_response_cls(with_subclass):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("sep", ["\n", "\r", "\r\n"], ids=("LF", "CR", "CR+LF"))
-async def test_custom_sep(loop, unused_tcp_port, session, sep):
+async def test_custom_sep(unused_tcp_port, session, sep):
     async def func(request):
         h = {"X-SSE": "aiohttp_sse"}
         async with sse_response(request, headers=h, sep=sep) as sse:
@@ -358,7 +358,7 @@ async def test_custom_sep(loop, unused_tcp_port, session, sep):
         "steam-CR+LF:line-CR+LF",
     ),
 )
-async def test_multiline_data(loop, unused_tcp_port, session, stream_sep, line_sep):
+async def test_multiline_data(unused_tcp_port, session, stream_sep, line_sep):
     async def func(request):
         h = {"X-SSE": "aiohttp_sse"}
         lines = line_sep.join(["foo", "bar", "xyz"])
