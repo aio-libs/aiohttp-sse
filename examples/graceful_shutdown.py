@@ -29,10 +29,7 @@ async def send_event(stream, data, event_id):
     try:
         await stream.send_json(data, id=str(event_id))
     except Exception as exc:
-        print(
-            f"Got an exception with event {event_id}, "
-            f"cause {type(exc).__name__}: {exc}"
-        )
+        logging.exception("Exception when sending event: %s", event_id)
 
 
 async def worker(app):
