@@ -56,14 +56,10 @@ jobs:
       uses: py-actions/py-dependency-install@v4
       with:
         path: requirements.txt
-    - name: Install itself
-      run: |
-        pip install .
     - name: Run unittests
+      run: pytest tests
       env:
         COLOR: 'yes'
-      run: |
-        make test
     - run: python -m coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v3
