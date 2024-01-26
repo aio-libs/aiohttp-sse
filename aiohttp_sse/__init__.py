@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import io
 import re
+from typing import Optional
 
 from aiohttp.web import HTTPMethodNotAllowed, StreamResponse
 
@@ -26,6 +27,7 @@ class EventSourceResponse(StreamResponse):
 
     DEFAULT_PING_INTERVAL = 15
     DEFAULT_SEPARATOR = "\r\n"
+    DEFAULT_LAST_EVENT_HEADER = "Last-Event-Id"
     LINE_SEP_EXPR = re.compile(r"\r\n|\r|\n")
 
     def __init__(self, *, status=200, reason=None, headers=None, sep=None):
@@ -43,6 +45,10 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval = self.DEFAULT_PING_INTERVAL
         self._ping_task = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
+
+    def is_connected(self) -> bool:
+        """Check connection is prepared and ping task is not done."""
+        return self.prepared and not self._ping_task.done()
 
     async def _prepare(self, request):
         await self.prepare(request)
@@ -133,6 +139,15 @@ class EventSourceResponse(StreamResponse):
     def ping_interval(self):
         """Time interval between two ping massages"""
         return self._ping_interval
+
+    @property
+    def last_event_id(self) -> Optional[str]:
+        """Last event ID, requested by client."""
+        if self._req is None:
+            msg = "EventSource request must be prepared first"
+            raise RuntimeError(msg)
+
+        return self._req.headers.get(self.DEFAULT_LAST_EVENT_HEADER)
 
     @ping_interval.setter
     def ping_interval(self, value):

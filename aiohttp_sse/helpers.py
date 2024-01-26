@@ -2,7 +2,6 @@ from collections.abc import Coroutine
 
 
 class _ContextManager(Coroutine):
-
     __slots__ = ("_coro", "_obj")
 
     def __init__(self, coro):
