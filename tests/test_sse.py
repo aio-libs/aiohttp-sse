@@ -15,7 +15,6 @@ async def make_runner(app, host, port):
     return runner
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "with_sse_response",
     (False, True),
@@ -76,7 +75,6 @@ async def test_func(loop, unused_tcp_port, with_sse_response, session):
     await runner.cleanup()
 
 
-@pytest.mark.asyncio
 async def test_wait_stop_streaming(loop, unused_tcp_port, session):
     async def func(request):
         app = request.app
@@ -112,7 +110,6 @@ async def test_wait_stop_streaming(loop, unused_tcp_port, session):
     await runner.cleanup()
 
 
-@pytest.mark.asyncio
 async def test_retry(loop, unused_tcp_port, session):
     async def func(request):
         resp = EventSourceResponse()
@@ -142,7 +139,6 @@ async def test_retry(loop, unused_tcp_port, session):
     await runner.cleanup()
 
 
-@pytest.mark.asyncio
 async def test_wait_stop_streaming_errors():
     response = EventSourceResponse()
     with pytest.raises(RuntimeError) as ctx:
@@ -175,7 +171,6 @@ def test_ping_property(loop):
         response.ping_interval = -42
 
 
-@pytest.mark.asyncio
 async def test_ping(loop, unused_tcp_port, session):
     async def func(request):
         app = request.app
@@ -211,7 +206,6 @@ async def test_ping(loop, unused_tcp_port, session):
     await runner.cleanup()
 
 
-@pytest.mark.asyncio
 async def test_context_manager(loop, unused_tcp_port, session):
     async def func(request):
         h = {"X-SSE": "aiohttp_sse"}
@@ -249,7 +243,6 @@ async def test_context_manager(loop, unused_tcp_port, session):
     await runner.cleanup()
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "with_subclass", [False, True], ids=("without_subclass", "with_subclass")
 )
@@ -266,7 +259,6 @@ async def test_custom_response_cls(with_subclass):
             sse_response(request, response_cls=CustomResponse)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("sep", ["\n", "\r", "\r\n"], ids=("LF", "CR", "CR+LF"))
 async def test_custom_sep(loop, unused_tcp_port, session, sep):
     async def func(request):
@@ -305,7 +297,6 @@ async def test_custom_sep(loop, unused_tcp_port, session, sep):
     await runner.cleanup()
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "stream_sep,line_sep",
     [
