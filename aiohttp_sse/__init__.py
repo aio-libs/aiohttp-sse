@@ -140,8 +140,7 @@ class EventSourceResponse(StreamResponse):
     def last_event_id(self) -> Optional[str]:
         """Last event ID, requested by client."""
         if self._req is None:
-            msg = "EventSource request must be prepared first"
-            raise RuntimeError(msg)
+            raise RuntimeError("EventSource request must be prepared first")
 
         return self._req.headers.get(self.DEFAULT_LAST_EVENT_HEADER)
 
