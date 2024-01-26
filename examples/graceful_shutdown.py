@@ -44,11 +44,7 @@ async def worker(app):
                 "time": f"Server Time : {now}",
                 "last_event_id": stream.last_event_id,
             }
-            coro = send_event(
-                stream=stream,
-                data=data,
-                event_id=now.timestamp(),
-            )
+            coro = send_event(stream, data, now.timestamp())
             fs.append(coro)
 
         # Run in parallel
