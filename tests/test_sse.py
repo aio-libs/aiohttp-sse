@@ -211,20 +211,19 @@ async def test_ping(loop, unused_tcp_port, session):
     await runner.cleanup()
 
 
-@pytest.mark.asyncio
-async def test_ping_reset(loop, unused_tcp_port, session):
+async def test_ping_reset(unused_tcp_port, session):
     async def func(request):
         app = request.app
         resp = EventSourceResponse()
         resp.ping_interval = 1
         await resp.prepare(request)
         await resp.send("foo")
-        app["socket"].append(resp)
+        app[socket].append(resp)
         await resp.wait()
         return resp
 
     app = web.Application()
-    app["socket"] = []
+    app[socket] = []
     app.router.add_route("GET", "/", func)
 
     host = "127.0.0.1"
@@ -234,14 +233,14 @@ async def test_ping_reset(loop, unused_tcp_port, session):
     resp_task = asyncio.create_task(session.request("GET", url))
 
     await asyncio.sleep(1.15)
-    esourse = app["socket"][0]
+    esourse = app[socket][0]
 
     def reset_error_write(data):
         raise ConnectionResetError("Cannot write to closing transport")
 
     esourse.write = reset_error_write
-    await esourse.wait()
-    assert esourse._ping_task.cancelled()
+    await esource.wait()
+    assert esource._ping_task.cancelled()
     resp = await resp_task
 
     assert 200 == resp.status
