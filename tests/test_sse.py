@@ -2,7 +2,7 @@ import asyncio
 from typing import List
 
 import pytest
-from aiohttp import web
+from aiohttp import ClientSession, web
 from aiohttp.test_utils import make_mocked_request
 
 from aiohttp_sse import EventSourceResponse, sse_response
@@ -10,7 +10,7 @@ from aiohttp_sse import EventSourceResponse, sse_response
 socket = web.AppKey("socket", List[EventSourceResponse])
 
 
-async def make_runner(app, host, port):
+async def make_runner(app, host, port) -> web.AppRunner:
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host, port)
@@ -23,8 +23,12 @@ async def make_runner(app, host, port):
     (False, True),
     ids=("without_sse_response", "with_sse_response"),
 )
-async def test_func(unused_tcp_port, with_sse_response, session):
-    async def func(request):
+async def test_func(
+    unused_tcp_port: int,
+    with_sse_response: bool,
+    session: ClientSession,
+) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         if with_sse_response:
             resp = await sse_response(request, headers={"X-SSE": "aiohttp_sse"})
         else:
@@ -78,8 +82,11 @@ async def test_func(unused_tcp_port, with_sse_response, session):
     await runner.cleanup()
 
 
-async def test_wait_stop_streaming(unused_tcp_port, session):
-    async def func(request):
+async def test_wait_stop_streaming(
+    unused_tcp_port: int,
+    session: ClientSession,
+) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
         resp = EventSourceResponse()
         await resp.prepare(request)
@@ -113,8 +120,11 @@ async def test_wait_stop_streaming(unused_tcp_port, session):
     await runner.cleanup()
 
 
-async def test_retry(unused_tcp_port, session):
-    async def func(request):
+async def test_retry(
+    unused_tcp_port: int,
+    session: ClientSession,
+) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         resp = EventSourceResponse()
         await resp.prepare(request)
         with pytest.raises(TypeError):
@@ -142,7 +152,7 @@ async def test_retry(unused_tcp_port, session):
     await runner.cleanup()
 
 
-async def test_wait_stop_streaming_errors():
+async def test_wait_stop_streaming_errors() -> None:
     response = EventSourceResponse()
     with pytest.raises(RuntimeError) as ctx:
         await response.wait()
@@ -153,20 +163,20 @@ async def test_wait_stop_streaming_errors():
     assert str(ctx.value) == "Response is not started"
 
 
-def test_compression_not_implemented():
+def test_compression_not_implemented() -> None:
     response = EventSourceResponse()
     with pytest.raises(NotImplementedError):
         response.enable_compression()
 
 
-def test_ping_property():
+def test_ping_property() -> None:
     response = EventSourceResponse()
     default = response.DEFAULT_PING_INTERVAL
     assert response.ping_interval == default
     response.ping_interval = 25
     assert response.ping_interval == 25
     with pytest.raises(TypeError) as ctx:
-        response.ping_interval = "ten"
+        response.ping_interval = "ten"  # type: ignore[assignment]
 
     assert str(ctx.value) == "ping interval must be int"
 
@@ -174,8 +184,8 @@ def test_ping_property():
         response.ping_interval = -42
 
 
-async def test_ping(unused_tcp_port, session):
-    async def func(request):
+async def test_ping(unused_tcp_port: int, session: ClientSession) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
         resp = EventSourceResponse()
         resp.ping_interval = 1
@@ -209,8 +219,8 @@ async def test_ping(unused_tcp_port, session):
     await runner.cleanup()
 
 
-async def test_ping_reset(unused_tcp_port, session):
-    async def func(request):
+async def test_ping_reset(unused_tcp_port: int, session: ClientSession) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
         resp = EventSourceResponse()
         resp.ping_interval = 1
@@ -249,8 +259,8 @@ async def test_ping_reset(unused_tcp_port, session):
     await runner.cleanup()
 
 
-async def test_context_manager(unused_tcp_port, session):
-    async def func(request):
+async def test_context_manager(unused_tcp_port: int, session: ClientSession) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         h = {"X-SSE": "aiohttp_sse"}
         async with sse_response(request, headers=h) as sse:
             await sse.send("foo")
@@ -289,7 +299,7 @@ async def test_context_manager(unused_tcp_port, session):
 @pytest.mark.parametrize(
     "with_subclass", [False, True], ids=("without_subclass", "with_subclass")
 )
-async def test_custom_response_cls(with_subclass):
+async def test_custom_response_cls(with_subclass: bool) -> None:
     class CustomResponse(EventSourceResponse if with_subclass else object):
         pass
 
@@ -303,8 +313,10 @@ async def test_custom_response_cls(with_subclass):
 
 
 @pytest.mark.parametrize("sep", ["\n", "\r", "\r\n"], ids=("LF", "CR", "CR+LF"))
-async def test_custom_sep(unused_tcp_port, session, sep):
-    async def func(request):
+async def test_custom_sep(
+    unused_tcp_port: int, session: ClientSession, sep: str
+) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         h = {"X-SSE": "aiohttp_sse"}
         async with sse_response(request, headers=h, sep=sep) as sse:
             await sse.send("foo")
@@ -392,8 +404,13 @@ async def test_custom_sep(unused_tcp_port, session, sep):
         "steam-CR+LF:line-CR+LF",
     ),
 )
-async def test_multiline_data(unused_tcp_port, session, stream_sep, line_sep):
-    async def func(request):
+async def test_multiline_data(
+    unused_tcp_port: int,
+    session: ClientSession,
+    stream_sep: str,
+    line_sep: str,
+) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         h = {"X-SSE": "aiohttp_sse"}
         lines = line_sep.join(["foo", "bar", "xyz"])
         async with sse_response(request, headers=h, sep=stream_sep) as sse:
@@ -430,8 +447,8 @@ async def test_multiline_data(unused_tcp_port, session, stream_sep, line_sep):
     await runner.cleanup()
 
 
-async def test_sse_state(unused_tcp_port, session):
-    async def func(request):
+async def test_sse_state(unused_tcp_port: int, session: ClientSession) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         async with sse_response(request) as resp:
             assert resp.is_connected()
 
@@ -447,8 +464,11 @@ async def test_sse_state(unused_tcp_port, session):
     await runner.cleanup()
 
 
-async def test_connection_is_not_alive(unused_tcp_port, session):
-    async def func(request):
+async def test_connection_is_not_alive(
+    unused_tcp_port: int,
+    session: ClientSession,
+) -> None:
+    async def func(request: web.Request) -> web.StreamResponse:
         # within context manager first preparation is already done
         async with sse_response(request) as resp:
             resp.ping_interval = 1
@@ -477,8 +497,8 @@ async def test_connection_is_not_alive(unused_tcp_port, session):
 
 
 class TestLastEventId:
-    async def test_success(self, unused_tcp_port, session):
-        async def func(request):
+    async def test_success(self, unused_tcp_port: int, session: ClientSession) -> None:
+        async def func(request: web.Request) -> web.StreamResponse:
             async with sse_response(request) as sse:
                 await sse.send(sse.last_event_id)
             return sse
@@ -500,7 +520,7 @@ class TestLastEventId:
         assert streamed_data == f"data: {last_event_id}\r\n\r\n"
         await runner.cleanup()
 
-    async def test_get_before_prepare(self):
+    async def test_get_before_prepare(self) -> None:
         sse = EventSourceResponse()
         with pytest.raises(RuntimeError):
             _ = sse.last_event_id

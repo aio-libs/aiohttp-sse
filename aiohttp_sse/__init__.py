@@ -2,9 +2,10 @@ import asyncio
 import contextlib
 import io
 import re
-from typing import Optional
+from typing import Mapping, Optional, Type, Union
 
-from aiohttp.web import HTTPMethodNotAllowed, StreamResponse
+from aiohttp.abc import BaseRequest
+from aiohttp.web import HTTPMethodNotAllowed, Request, StreamResponse
 
 from .helpers import _ContextManager
 
@@ -30,7 +31,14 @@ class EventSourceResponse(StreamResponse):
     DEFAULT_LAST_EVENT_HEADER = "Last-Event-Id"
     LINE_SEP_EXPR = re.compile(r"\r\n|\r|\n")
 
-    def __init__(self, *, status=200, reason=None, headers=None, sep=None):
+    def __init__(
+        self,
+        *,
+        status: int = 200,
+        reason: Optional[str] = None,
+        headers: Optional[Mapping] = None,
+        sep: Optional[str] = None,
+    ):
         super().__init__(status=status, reason=reason)
 
         if headers is not None:
@@ -50,11 +58,11 @@ class EventSourceResponse(StreamResponse):
         """Check connection is prepared and ping task is not done."""
         return self.prepared and not self._ping_task.done()
 
-    async def _prepare(self, request):
+    async def _prepare(self, request: Request) -> "EventSourceResponse":
         await self.prepare(request)
         return self
 
-    async def prepare(self, request):
+    async def prepare(self, request: BaseRequest):
         """Prepare for streaming and send HTTP headers.
 
         :param request: regular aiohttp.web.Request.
@@ -77,7 +85,13 @@ class EventSourceResponse(StreamResponse):
                 # request disconnected
                 raise asyncio.CancelledError()
 
-    async def send(self, data, id=None, event=None, retry=None):
+    async def send(
+        self,
+        data: str,
+        id: Optional[str] = None,
+        event: Optional[str] = None,
+        retry: Optional[int] = None,
+    ) -> None:
         """Send data using EventSource protocol
 
         :param str data: The data field for the message.
@@ -114,7 +128,7 @@ class EventSourceResponse(StreamResponse):
         buffer.write(self._sep)
         await self.write(buffer.getvalue().encode("utf-8"))
 
-    async def wait(self):
+    async def wait(self) -> None:
         """EventSourceResponse object is used for streaming data to the client,
         this method returns future, so we can wait until connection will
         be closed or other task explicitly call ``stop_streaming`` method.
@@ -124,7 +138,7 @@ class EventSourceResponse(StreamResponse):
         with contextlib.suppress(asyncio.CancelledError):
             await self._ping_task
 
-    def stop_streaming(self):
+    def stop_streaming(self) -> None:
         """Used in conjunction with ``wait`` could be called from other task
         to notify client that server no longer wants to stream anything.
         """
@@ -132,11 +146,11 @@ class EventSourceResponse(StreamResponse):
             raise RuntimeError("Response is not started")
         self._ping_task.cancel()
 
-    def enable_compression(self, force=False):
+    def enable_compression(self, force: bool = False) -> None:
         raise NotImplementedError
 
     @property
-    def ping_interval(self):
+    def ping_interval(self) -> Union[int, float]:
         """Time interval between two ping massages"""
         return self._ping_interval
 
@@ -150,20 +164,20 @@ class EventSourceResponse(StreamResponse):
         return self._req.headers.get(self.DEFAULT_LAST_EVENT_HEADER)
 
     @ping_interval.setter
-    def ping_interval(self, value):
+    def ping_interval(self, value: Union[int, float]) -> None:
         """Setter for ping_interval property.
 
         :param int value: interval in sec between two ping values.
         """
 
-        if not isinstance(value, int):
-            raise TypeError("ping interval must be int")
+        if not isinstance(value, Union[int, float]):
+            raise TypeError("ping interval must be int or float")
         if value < 0:
             raise ValueError("ping interval must be greater then 0")
 
         self._ping_interval = value
 
-    async def _ping(self):
+    async def _ping(self) -> None:
         # periodically send ping to the browser. Any message that
         # starts with ":" colon ignored by a browser and could be used
         # as ping message.
@@ -174,24 +188,23 @@ class EventSourceResponse(StreamResponse):
             except ConnectionResetError:
                 self._ping_task.cancel()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "EventSourceResponse":
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args) -> None:
         self.stop_streaming()
         await self.wait()
-        return
 
 
 def sse_response(
-    request,
+    request: Request,
     *,
-    status=200,
-    reason=None,
-    headers=None,
-    sep=None,
-    response_cls=EventSourceResponse,
-):
+    status: int = 200,
+    reason: Optional[str] = None,
+    headers: Optional[Mapping] = None,
+    sep: Optional[str] = None,
+    response_cls: Type[EventSourceResponse] = EventSourceResponse,
+) -> _ContextManager:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
             "response_cls must be subclass of "

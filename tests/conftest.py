@@ -1,21 +1,27 @@
+from asyncio import AbstractEventLoop
+from typing import AsyncGenerator, cast
+
 import aiohttp
 import pytest
+from pytest_asyncio.plugin import SubRequest
 
 
 @pytest.fixture(
-    scope="session", params=[True, False], ids=["debug:true", "debug:false"]
+    scope="session",
+    params=[True, False],
+    ids=["debug:true", "debug:false"],
 )
-def debug(request):
-    return request.param
+def debug(request: SubRequest) -> bool:
+    return cast(bool, request.param)
 
 
 @pytest.fixture(autouse=True)
-def loop(event_loop, debug):
+def loop(event_loop: AbstractEventLoop, debug: bool) -> AbstractEventLoop:
     event_loop.set_debug(debug)
     return event_loop
 
 
 @pytest.fixture
-async def session():
+async def session() -> AsyncGenerator[aiohttp.ClientSession, None]:
     async with aiohttp.ClientSession() as session:
         yield session
