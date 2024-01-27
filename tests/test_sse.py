@@ -182,7 +182,7 @@ class TestPingProperty:
         with pytest.raises(TypeError) as ctx:
             response.ping_interval = value  # type: ignore[assignment]
 
-        assert ctx.match(r"ping interval must be .*")
+        assert ctx.match("ping interval must be int or float")
 
     def test_negative_int(self) -> None:
         response = EventSourceResponse()
