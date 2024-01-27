@@ -1,5 +1,5 @@
 import asyncio
-from typing import List
+from typing import Any, List, Union
 
 import pytest
 from aiohttp import ClientSession, web
@@ -169,19 +169,31 @@ def test_compression_not_implemented() -> None:
         response.enable_compression()
 
 
-def test_ping_property() -> None:
-    response = EventSourceResponse()
-    default = response.DEFAULT_PING_INTERVAL
-    assert response.ping_interval == default
-    response.ping_interval = 25
-    assert response.ping_interval == 25
-    with pytest.raises(TypeError) as ctx:
-        response.ping_interval = "ten"  # type: ignore[assignment]
+class TestPingProperty:
+    @pytest.mark.parametrize("value", [25, 25.0], ids=("int", "float"))
+    def test_success(self, value: Union[int, float]) -> None:
+        response = EventSourceResponse()
+        response.ping_interval = value
+        assert response.ping_interval == value
 
-    assert str(ctx.value) == "ping interval must be int"
+    @pytest.mark.parametrize("value", [None, "foo"], ids=("None", "str"))
+    def test_wrong_type(self, value: Any) -> None:
+        response = EventSourceResponse()
+        with pytest.raises(TypeError) as ctx:
+            response.ping_interval = value  # type: ignore[assignment]
 
-    with pytest.raises(ValueError):
-        response.ping_interval = -42
+        assert ctx.match(r"ping interval must be .*")
+
+    def test_negative_int(self) -> None:
+        response = EventSourceResponse()
+        with pytest.raises(ValueError) as ctx:
+            response.ping_interval = -42
+
+        assert ctx.match("ping interval must be greater then 0")
+
+    def test_default_value(self):
+        response = EventSourceResponse()
+        assert response.ping_interval == response.DEFAULT_PING_INTERVAL
 
 
 async def test_ping(unused_tcp_port: int, session: ClientSession) -> None:
