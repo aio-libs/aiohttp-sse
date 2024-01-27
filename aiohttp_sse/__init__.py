@@ -170,7 +170,7 @@ class EventSourceResponse(StreamResponse):
         :param int value: interval in sec between two ping values.
         """
 
-        if not isinstance(value, Union[int, float]):
+        if not isinstance(value, (int, float)):
             raise TypeError("ping interval must be int or float")
         if value < 0:
             raise ValueError("ping interval must be greater then 0")
