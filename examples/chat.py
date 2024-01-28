@@ -7,7 +7,7 @@ from aiohttp.web import Application, Request, Response, StreamResponse
 
 from aiohttp_sse import sse_response
 
-channels = web.AppKey("channels", Set[asyncio.Queue])
+channels = web.AppKey("channels", Set[asyncio.Queue[str]])
 
 
 async def chat(_request: Request) -> StreamResponse:

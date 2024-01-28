@@ -11,8 +11,8 @@ from aiohttp import web
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
-streams_key = web.AppKey("streams_key", weakref.WeakSet)
-worker_key = web.AppKey("worker_key", asyncio.Task)
+streams_key = web.AppKey("streams_key", weakref.WeakSet["SSEResponse"])
+worker_key = web.AppKey("worker_key", asyncio.Task[None])
 
 
 class SSEResponse(EventSourceResponse):
