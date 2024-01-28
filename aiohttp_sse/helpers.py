@@ -28,18 +28,17 @@ class _ContextManager(Coroutine[T, None, T]):
     def close(self) -> None:
         return self._coro.close()  # pragma: no cover
 
-    # TODO: Do we really need it? Tests passes without it
-    # @property
-    # def gi_frame(self):
-    #     return self._coro.gi_frame  # pragma: no cover
-    #
-    # @property
-    # def gi_running(self):
-    #     return self._coro.gi_running  # pragma: no cover
-    #
-    # @property
-    # def gi_code(self):
-    #     return self._coro.gi_code  # pragma: no cover
+    @property
+    def gi_frame(self):
+        return self._coro.gi_frame  # type: ignore[attr-defined]  # pragma: no cover
+
+    @property
+    def gi_running(self):
+        return self._coro.gi_running  # type: ignore[attr-defined]  # pragma: no cover
+
+    @property
+    def gi_code(self):
+        return self._coro.gi_code  # type: ignore[attr-defined]  # pragma: no cover
 
     def __next__(self) -> T:
         return self.send(None)  # pragma: no cover
