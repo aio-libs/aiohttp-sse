@@ -57,6 +57,6 @@ class _ContextManager(Coroutine[T, None, T]):
         exc: Optional[BaseException],
         tb: Optional[TracebackType],
     ) -> Optional[bool]:
-        if self._obj is None:
+        if self._obj is None:  # pragma: no cover
             return False
         return await self._obj.__aexit__(exc_type, exc, tb)

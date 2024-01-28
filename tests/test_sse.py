@@ -468,21 +468,28 @@ async def test_multiline_data(
     await runner.cleanup()
 
 
-async def test_sse_state(unused_tcp_port: int, session: ClientSession) -> None:
-    async def func(request: web.Request) -> web.StreamResponse:
-        async with sse_response(request) as resp:
-            assert resp.is_connected()
+class TestSSEState:
+    async def test_context_states(
+        self, unused_tcp_port: int, session: ClientSession
+    ) -> None:
+        async def func(request: web.Request) -> web.StreamResponse:
+            async with sse_response(request) as resp:
+                assert resp.is_connected()
 
-        assert not resp.is_connected()
-        return resp
+            assert not resp.is_connected()
+            return resp
 
-    app = web.Application()
-    app.router.add_route("GET", "/", func)
+        app = web.Application()
+        app.router.add_route("GET", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    await session.request("GET", f"http://{host}:{unused_tcp_port}/")
-    await runner.cleanup()
+        host = "127.0.0.1"
+        runner = await make_runner(app, host, unused_tcp_port)
+        await session.request("GET", f"http://{host}:{unused_tcp_port}/")
+        await runner.cleanup()
+
+    async def test_not_prepared(self) -> None:
+        response = EventSourceResponse()
+        assert not response.is_connected()
 
 
 async def test_connection_is_not_alive(

@@ -58,10 +58,7 @@ class EventSourceResponse(StreamResponse):
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
-        if not self.prepared:
-            return False
-
-        if self._ping_task is None:
+        if not self.prepared or self._ping_task is None:
             return False
 
         return not self._ping_task.done()
@@ -197,7 +194,7 @@ class EventSourceResponse(StreamResponse):
             try:
                 await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
             except ConnectionResetError:
-                if self._ping_task is not None:
+                if self._ping_task is not None:  # pragma: no cover (made for mypy)
                     self._ping_task.cancel()
 
     async def __aenter__(self) -> "EventSourceResponse":
