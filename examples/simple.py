@@ -7,9 +7,9 @@ from aiohttp import web
 from aiohttp_sse import sse_response
 
 
-async def hello(request):
+async def hello(request: web.Request) -> web.StreamResponse:
     async with sse_response(request) as resp:
-        while True:
+        while resp.is_connected():
             time_dict = {"time": f"Server Time : {datetime.now()}"}
             data = json.dumps(time_dict, indent=2)
             print(data)
@@ -18,7 +18,7 @@ async def hello(request):
     return resp
 
 
-async def index(request):
+async def index(request: web.Request) -> web.StreamResponse:
     d = """
         <html>
         <head>

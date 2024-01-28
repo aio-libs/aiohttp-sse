@@ -1,11 +1,13 @@
 import asyncio
-import contextlib
 import io
 import re
-from typing import Mapping, Optional, Type, Union
+from contextlib import suppress
+from types import TracebackType
+from typing import Mapping, Optional, Type, TypeVar, Union, overload
 
-from aiohttp.abc import BaseRequest
-from aiohttp.web import HTTPMethodNotAllowed, Request, StreamResponse
+from aiohttp.abc import AbstractStreamWriter
+from aiohttp.web import BaseRequest, HTTPMethodNotAllowed, Request, StreamResponse
+from aiohttp.web_response import ContentCoding
 
 from .helpers import _ContextManager
 
@@ -36,7 +38,7 @@ class EventSourceResponse(StreamResponse):
         *,
         status: int = 200,
         reason: Optional[str] = None,
-        headers: Optional[Mapping] = None,
+        headers: Optional[Mapping[str, str]] = None,
         sep: Optional[str] = None,
     ):
         super().__init__(status=status, reason=reason)
@@ -50,19 +52,25 @@ class EventSourceResponse(StreamResponse):
         self.headers["Connection"] = "keep-alive"
         self.headers["X-Accel-Buffering"] = "no"
 
-        self._ping_interval = self.DEFAULT_PING_INTERVAL
-        self._ping_task = None
+        self._ping_interval: Union[int, float] = self.DEFAULT_PING_INTERVAL
+        self._ping_task: Optional[asyncio.Task[None]] = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
-        return self.prepared and not self._ping_task.done()
+        if not self.prepared:
+            return False
+
+        if self._ping_task is None:
+            return False
+
+        return not self._ping_task.done()
 
     async def _prepare(self, request: Request) -> "EventSourceResponse":
         await self.prepare(request)
         return self
 
-    async def prepare(self, request: BaseRequest):
+    async def prepare(self, request: BaseRequest) -> Optional[AbstractStreamWriter]:
         """Prepare for streaming and send HTTP headers.
 
         :param request: regular aiohttp.web.Request.
@@ -84,6 +92,7 @@ class EventSourceResponse(StreamResponse):
             if request.protocol.transport is None:
                 # request disconnected
                 raise asyncio.CancelledError()
+            return self._payload_writer
 
     async def send(
         self,
@@ -135,7 +144,7 @@ class EventSourceResponse(StreamResponse):
         """
         if self._ping_task is None:
             raise RuntimeError("Response is not started")
-        with contextlib.suppress(asyncio.CancelledError):
+        with suppress(asyncio.CancelledError):
             await self._ping_task
 
     def stop_streaming(self) -> None:
@@ -146,13 +155,10 @@ class EventSourceResponse(StreamResponse):
             raise RuntimeError("Response is not started")
         self._ping_task.cancel()
 
-    def enable_compression(self, force: bool = False) -> None:
+    def enable_compression(
+        self, force: Union[bool, ContentCoding, None] = False
+    ) -> None:
         raise NotImplementedError
-
-    @property
-    def ping_interval(self) -> Union[int, float]:
-        """Time interval between two ping massages"""
-        return self._ping_interval
 
     @property
     def last_event_id(self) -> Optional[str]:
@@ -162,6 +168,11 @@ class EventSourceResponse(StreamResponse):
             raise RuntimeError(msg)
 
         return self._req.headers.get(self.DEFAULT_LAST_EVENT_HEADER)
+
+    @property
+    def ping_interval(self) -> Union[int, float]:
+        """Time interval between two ping massages"""
+        return self._ping_interval
 
     @ping_interval.setter
     def ping_interval(self, value: Union[int, float]) -> None:
@@ -186,14 +197,48 @@ class EventSourceResponse(StreamResponse):
             try:
                 await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
             except ConnectionResetError:
-                self._ping_task.cancel()
+                if self._ping_task is not None:
+                    self._ping_task.cancel()
 
     async def __aenter__(self) -> "EventSourceResponse":
         return self
 
-    async def __aexit__(self, *args) -> None:
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
         self.stop_streaming()
         await self.wait()
+
+
+ESR = TypeVar("ESR", bound=EventSourceResponse)
+
+
+@overload
+def sse_response(
+    request: Request,
+    *,
+    status: int = 200,
+    reason: Optional[str] = None,
+    headers: Optional[Mapping[str, str]] = None,
+    sep: Optional[str] = None,
+) -> _ContextManager[EventSourceResponse]:
+    ...
+
+
+@overload
+def sse_response(
+    request: Request,
+    *,
+    status: int = 200,
+    reason: Optional[str] = None,
+    headers: Optional[Mapping[str, str]] = None,
+    sep: Optional[str] = None,
+    response_cls: Type[ESR] = ...,
+) -> _ContextManager[ESR]:
+    ...
 
 
 def sse_response(
@@ -201,10 +246,10 @@ def sse_response(
     *,
     status: int = 200,
     reason: Optional[str] = None,
-    headers: Optional[Mapping] = None,
+    headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
     response_cls: Type[EventSourceResponse] = EventSourceResponse,
-) -> _ContextManager:
+) -> _ContextManager[EventSourceResponse]:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
             "response_cls must be subclass of "
