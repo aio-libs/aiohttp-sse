@@ -193,9 +193,8 @@ class EventSourceResponse(StreamResponse):
             await asyncio.sleep(self._ping_interval)
             try:
                 await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
-            except ConnectionResetError:
-                if self._ping_task is not None:  # pragma: no cover (made for mypy)
-                    self._ping_task.cancel()
+            except ConnectionResetError as exc:
+                raise asyncio.CancelledError() from exc
 
     async def __aenter__(self) -> "EventSourceResponse":
         return self
