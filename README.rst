@@ -33,43 +33,51 @@ Example
 .. code:: python
 
     import asyncio
-    from aiohttp import web
-    from aiohttp.web import Response
-    from aiohttp_sse import sse_response
+    import json
     from datetime import datetime
 
+    from aiohttp import web
 
-    async def hello(request):
+    from aiohttp_sse import sse_response
+
+
+    async def hello(request: web.Request) -> web.StreamResponse:
         async with sse_response(request) as resp:
-            while True:
-                data = 'Server Time : {}'.format(datetime.now())
+            while resp.is_connected():
+                time_dict = {"time": f"Server Time : {datetime.now()}"}
+                data = json.dumps(time_dict, indent=2)
                 print(data)
                 await resp.send(data)
                 await asyncio.sleep(1)
+        return resp
 
 
-    async def index(request):
-        d = """
+    async def index(_request: web.Request) -> web.StreamResponse:
+        html = """
             <html>
-            <body>
-                <script>
+            <head>
+                <script type="text/javascript"
+                    src="http://code.jquery.com/jquery.min.js"></script>
+                <script type="text/javascript">
                     var evtSource = new EventSource("/hello");
                     evtSource.onmessage = function(e) {
-                        document.getElementById('response').innerText = e.data
+                        $('#response').html(e.data);
                     }
                 </script>
+            </head>
+            <body>
                 <h1>Response from server:</h1>
-                <div id="response"></div>
+                <pre id="response"></pre>
             </body>
         </html>
         """
-        return Response(text=d, content_type='text/html')
+        return web.Response(text=html, content_type="text/html")
 
 
     app = web.Application()
-    app.router.add_route('GET', '/hello', hello)
-    app.router.add_route('GET', '/', index)
-    web.run_app(app, host='127.0.0.1', port=8080)
+    app.router.add_route("GET", "/hello", hello)
+    app.router.add_route("GET", "/", index)
+    web.run_app(app, host="127.0.0.1", port=8080)
 
 
 EventSource Protocol
