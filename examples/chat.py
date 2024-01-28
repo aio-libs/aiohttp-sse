@@ -7,10 +7,10 @@ from aiohttp.web import Application, Request, Response, StreamResponse
 
 from aiohttp_sse import sse_response
 
-channels = web.AppKey("channels", Set[asyncio.Queue[str]])
+channels = web.AppKey("channels", Set[asyncio.Queue])
 
 
-async def chat(request: Request) -> StreamResponse:
+async def chat(_request: Request) -> StreamResponse:
     d = """
     <html>
       <head>
@@ -100,7 +100,7 @@ async def subscribe(request: Request) -> StreamResponse:
         print("Someone joined.")
         app[channels].add(queue)
         try:
-            while response.task and not response.task.done():
+            while response.is_connected():
                 payload = await queue.get()
                 await response.send(payload)
                 queue.task_done()
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     app = Application()
     app[channels] = set()
 
-    app.router.add_route("GET", "/chat", chat)
+    app.router.add_route("GET", "/", chat)
     app.router.add_route("POST", "/everyone", message)
     app.router.add_route("GET", "/subscribe", subscribe)
     web.run_app(app, host="127.0.0.1", port=8080)

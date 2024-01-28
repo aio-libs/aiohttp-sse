@@ -11,8 +11,8 @@ from aiohttp import web
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
-streams_key = web.AppKey("streams_key", weakref.WeakSet["SSEResponse"])
-worker_key = web.AppKey("worker_key", asyncio.Task[None])
+streams_key = web.AppKey("streams_key", weakref.WeakSet)
+worker_key = web.AppKey("worker_key", asyncio.Task)
 
 
 class SSEResponse(EventSourceResponse):
@@ -90,7 +90,7 @@ async def hello(request: web.Request) -> web.StreamResponse:
     return stream
 
 
-async def index(request: web.Request) -> web.StreamResponse:
+async def index(_request: web.Request) -> web.StreamResponse:
     d = """
         <html>
         <head>
@@ -120,5 +120,5 @@ if __name__ == "__main__":
     app.on_cleanup.append(clean_up)
 
     app.router.add_route("GET", "/hello", hello)
-    app.router.add_route("GET", "/index", index)
+    app.router.add_route("GET", "/", index)
     web.run_app(app, host="127.0.0.1", port=8080)
