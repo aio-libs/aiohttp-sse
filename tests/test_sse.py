@@ -313,23 +313,23 @@ async def test_context_manager(unused_tcp_port: int, session: ClientSession) -> 
     await runner.cleanup()
 
 
-@pytest.mark.parametrize(
-    "with_subclass", [False, True], ids=("without_subclass", "with_subclass")
-)
-async def test_custom_response_cls(with_subclass: bool) -> None:
-    custom_response_cls = type(EventSourceResponse if with_subclass else object)
-    request = make_mocked_request("GET", "/")
+class TestCustomResponseClass:
+    async def test_subclass(self) -> None:
+        class CustomEventSource(EventSourceResponse):
+            pass
 
-    # TODO: what kind of warning is expected here?
-    # if with_subclass:
-    #     with pytest.warns(RuntimeWarning):
-    #         await sse_response(request, response_cls=custom_response_cls)
+        request = make_mocked_request("GET", "/")
+        await sse_response(request, response_cls=CustomEventSource)
 
-    if not with_subclass:
+    async def test_not_related_class(self) -> None:
+        class CustomClass:
+            pass
+
+        request = make_mocked_request("GET", "/")
         with pytest.raises(TypeError):
-            await sse_response(  # type: ignore[type-var]
+            await sse_response(
                 request=request,
-                response_cls=custom_response_cls,
+                response_cls=CustomClass,  # type: ignore[type-var]
             )
 
 
