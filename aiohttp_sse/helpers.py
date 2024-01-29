@@ -9,7 +9,7 @@ from typing import (
     TypeVar,
 )
 
-T = TypeVar("T", bound=AsyncContextManager["T"])
+T = TypeVar("T", bound=AsyncContextManager["T"])  # type: ignore[misc]
 
 
 class _ContextManager(Coroutine[T, None, T]):
@@ -29,15 +29,15 @@ class _ContextManager(Coroutine[T, None, T]):
         return self._coro.close()  # pragma: no cover
 
     @property
-    def gi_frame(self):
+    def gi_frame(self) -> Any:  # type: ignore[misc]
         return self._coro.gi_frame  # type: ignore[attr-defined]  # pragma: no cover
 
     @property
-    def gi_running(self):
+    def gi_running(self) -> Any:  # type: ignore[misc]
         return self._coro.gi_running  # type: ignore[attr-defined]  # pragma: no cover
 
     @property
-    def gi_code(self):
+    def gi_code(self) -> Any:  # type: ignore[misc]
         return self._coro.gi_code  # type: ignore[attr-defined]  # pragma: no cover
 
     def __next__(self) -> T:
@@ -48,7 +48,7 @@ class _ContextManager(Coroutine[T, None, T]):
 
     async def __aenter__(self) -> T:
         self._obj = await self._coro
-        return await self._obj.__aenter__()
+        return await self._obj.__aenter__()  # type: ignore[no-any-return]
 
     async def __aexit__(
         self,

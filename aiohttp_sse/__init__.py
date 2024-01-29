@@ -3,7 +3,7 @@ import io
 import re
 from contextlib import suppress
 from types import TracebackType
-from typing import Mapping, Optional, Type, TypeVar, Union, overload
+from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
 
 from aiohttp.abc import AbstractStreamWriter
 from aiohttp.web import BaseRequest, HTTPMethodNotAllowed, Request, StreamResponse
@@ -245,7 +245,7 @@ def sse_response(
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
     response_cls: Type[EventSourceResponse] = EventSourceResponse,
-) -> _ContextManager[EventSourceResponse]:
+) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
             "response_cls must be subclass of "
