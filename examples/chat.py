@@ -112,7 +112,7 @@ async def subscribe(request: Request) -> StreamResponse:
 
 if __name__ == "__main__":
     app = Application()
-    app[channels] = set()
+    app[channels] = set()  # type: ignore[misc]
 
     app.router.add_route("GET", "/", chat)
     app.router.add_route("POST", "/everyone", message)

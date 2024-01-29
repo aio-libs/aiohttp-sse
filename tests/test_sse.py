@@ -96,7 +96,7 @@ async def test_wait_stop_streaming(
         return resp
 
     app = web.Application()
-    app[socket] = []
+    app[socket] = []  # type: ignore[misc]
     app.router.add_route("GET", "/", func)
 
     host = "127.0.0.1"
@@ -208,7 +208,7 @@ async def test_ping(unused_tcp_port: int, session: ClientSession) -> None:
         return resp
 
     app = web.Application()
-    app[socket] = []
+    app[socket] = []  # type: ignore[misc]
     app.router.add_route("GET", "/", func)
 
     host = "127.0.0.1"
@@ -247,7 +247,7 @@ async def test_ping_reset(
         return resp
 
     app = web.Application()
-    app[socket] = []
+    app[socket] = []  # type: ignore[misc]
     app.router.add_route("GET", "/", func)
 
     host = "127.0.0.1"
