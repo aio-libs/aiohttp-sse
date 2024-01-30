@@ -69,6 +69,7 @@ class EventSourceResponse(StreamResponse):
         return not self._ping_task.done()
 
     async def _prepare(self, request: Request) -> "EventSourceResponse":
+        # TODO(PY311): Use Self for return type.
         await self.prepare(request)
         return self
 
