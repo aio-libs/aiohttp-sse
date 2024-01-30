@@ -3,7 +3,6 @@ from typing import AsyncIterator, cast
 
 import aiohttp
 import pytest
-from pytest_asyncio.plugin import SubRequest
 
 
 @pytest.fixture(
@@ -11,7 +10,7 @@ from pytest_asyncio.plugin import SubRequest
     params=[True, False],
     ids=["debug:true", "debug:false"],
 )
-def debug(request: SubRequest) -> bool:
+def debug(request: pytest.FixtureRequest) -> bool:
     return cast(bool, request.param)
 
 
