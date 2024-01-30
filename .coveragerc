@@ -1,9 +1,3 @@
 # .coveragerc to control coverage.py
 [run]
-branch = True
-
-[report]
-exclude_also =
-    if TYPE_CHECKING:
-    @(abc\.)?abstractmethod
-    @overload
+plugins = covdefaults
