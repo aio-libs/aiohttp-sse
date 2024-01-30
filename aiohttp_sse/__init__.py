@@ -6,8 +6,13 @@ from types import TracebackType
 from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
 
 from aiohttp.abc import AbstractStreamWriter
-from aiohttp.web import BaseRequest, HTTPMethodNotAllowed, Request, StreamResponse
-from aiohttp.web_response import ContentCoding
+from aiohttp.web import (
+    BaseRequest,
+    ContentCoding,
+    HTTPMethodNotAllowed,
+    Request,
+    StreamResponse,
+)
 
 from .helpers import _ContextManager
 
