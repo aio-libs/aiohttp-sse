@@ -1,4 +1,4 @@
 -r requirements.txt
-mypy==1.8.0; implementation_name=="cpython"
+mypy==1.8.0
 
-pre-commit==3.5.0
+pre-commit==3.6.0

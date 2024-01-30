@@ -22,6 +22,6 @@ def loop(event_loop: AbstractEventLoop, debug: bool) -> AbstractEventLoop:
 
 
 @pytest.fixture
-async def session() -> AsyncGenerator[aiohttp.ClientSession, None]:
+async def session() -> AsyncIterator[aiohttp.ClientSession]:
     async with aiohttp.ClientSession() as session:
         yield session

@@ -10,7 +10,7 @@ from aiohttp_sse import sse_response
 channels = web.AppKey("channels", Set[asyncio.Queue[str]])
 
 
-async def chat(_request: Request) -> StreamResponse:
+async def chat(_request: Request) -> web.Response:
     d = """
     <html>
       <head>
@@ -83,7 +83,7 @@ async def chat(_request: Request) -> StreamResponse:
     return Response(text=d, content_type="text/html")
 
 
-async def message(request: Request) -> StreamResponse:
+async def message(request: Request) -> web.Response:
     app = request.app
     data = await request.post()
 
@@ -93,7 +93,7 @@ async def message(request: Request) -> StreamResponse:
     return Response()
 
 
-async def subscribe(request: Request) -> StreamResponse:
+async def subscribe(request: Request) -> EventSourceResponse:
     async with sse_response(request) as response:
         app = request.app
         queue: asyncio.Queue[str] = asyncio.Queue()
