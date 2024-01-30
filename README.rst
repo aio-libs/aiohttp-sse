@@ -33,7 +33,6 @@ Example
 .. code:: python
 
     import asyncio
-    import json
     from datetime import datetime
 
     from aiohttp import web
@@ -55,21 +54,17 @@ Example
     async def index(_request: web.Request) -> web.StreamResponse:
         html = """
             <html>
-            <head>
-                <script type="text/javascript"
-                    src="http://code.jquery.com/jquery.min.js"></script>
-                <script type="text/javascript">
-                    var evtSource = new EventSource("/hello");
-                    evtSource.onmessage = function(e) {
-                        $('#response').html(e.data);
-                    }
-                </script>
-            </head>
-            <body>
-                <h1>Response from server:</h1>
-                <pre id="response"></pre>
-            </body>
-        </html>
+                <body>
+                    <script>
+                        var eventSource = new EventSource("/hello");
+                        eventSource.addEventListener('message', event => {
+                            document.getElementById('response').innerText = event.data;
+                        });
+                    </script>
+                    <h1>Response from server:</h1>
+                    <div id="response"></div>
+                </body>
+            </html>
         """
         return web.Response(text=html, content_type="text/html")
 

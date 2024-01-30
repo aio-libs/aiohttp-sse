@@ -92,15 +92,13 @@ async def hello(request: web.Request) -> web.StreamResponse:
 
 async def index(_request: web.Request) -> web.StreamResponse:
     d = """
-        <html>
+    <html>
         <head>
-            <script type="text/javascript"
-                src="http://code.jquery.com/jquery.min.js"></script>
-            <script type="text/javascript">
-            var evtSource = new EventSource("/hello");
-            evtSource.onmessage = function(e) {
-              $('#response').html(e.data);
-            }
+            <script>
+                var eventSource = new EventSource("/hello");
+                eventSource.addEventListener('message', event => {
+                    document.getElementById('response').innerText = event.data;
+                });
             </script>
         </head>
         <body>

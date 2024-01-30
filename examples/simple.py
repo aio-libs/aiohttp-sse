@@ -1,5 +1,4 @@
 import asyncio
-import json
 from datetime import datetime
 
 from aiohttp import web
@@ -10,8 +9,7 @@ from aiohttp_sse import sse_response
 async def hello(request: web.Request) -> web.StreamResponse:
     async with sse_response(request) as resp:
         while resp.is_connected():
-            time_dict = {"time": f"Server Time : {datetime.now()}"}
-            data = json.dumps(time_dict, indent=2)
+            data = f"Server Time : {datetime.now()}"
             print(data)
             await resp.send(data)
             await asyncio.sleep(1)
@@ -21,21 +19,17 @@ async def hello(request: web.Request) -> web.StreamResponse:
 async def index(_request: web.Request) -> web.StreamResponse:
     html = """
         <html>
-        <head>
-            <script type="text/javascript"
-                src="http://code.jquery.com/jquery.min.js"></script>
-            <script type="text/javascript">
-                var evtSource = new EventSource("/hello");
-                evtSource.onmessage = function(e) {
-                    $('#response').html(e.data);
-                }
-            </script>
-        </head>
-        <body>
-            <h1>Response from server:</h1>
-            <pre id="response"></pre>
-        </body>
-    </html>
+            <body>
+                <script>
+                    var eventSource = new EventSource("/hello");
+                    eventSource.addEventListener('message', event => {
+                        document.getElementById('response').innerText = event.data;
+                    });
+                </script>
+                <h1>Response from server:</h1>
+                <div id="response"></div>
+            </body>
+        </html>
     """
     return web.Response(text=html, content_type="text/html")
 
