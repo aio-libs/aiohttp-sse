@@ -57,8 +57,8 @@ Example
                 <body>
                     <script>
                         var eventSource = new EventSource("/hello");
-                        eventSource.addEventListener('message', event => {
-                            document.getElementById('response').innerText = event.data;
+                        eventSource.addEventListener("message", event => {
+                            document.getElementById("response").innerText = event.data;
                         });
                     </script>
                     <h1>Response from server:</h1>
