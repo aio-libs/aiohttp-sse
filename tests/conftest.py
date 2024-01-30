@@ -1,5 +1,5 @@
 from asyncio import AbstractEventLoop
-from typing import AsyncGenerator, cast
+from typing import AsyncIterator, cast
 
 import aiohttp
 import pytest

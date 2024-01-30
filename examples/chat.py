@@ -3,15 +3,14 @@ import json
 from typing import Set
 
 from aiohttp import web
-from aiohttp.web import Application, Request, Response, StreamResponse
 
-from aiohttp_sse import sse_response
+from aiohttp_sse import EventSourceResponse, sse_response
 
 channels = web.AppKey("channels", Set[asyncio.Queue[str]])
 
 
-async def chat(_request: Request) -> web.Response:
-    d = """
+async def chat(_request: web.Request) -> web.Response:
+    html = """
     <html>
       <head>
         <title>Tiny Chat</title>
@@ -80,20 +79,20 @@ async def chat(_request: Request) -> web.Response:
     </html>
 
     """
-    return Response(text=d, content_type="text/html")
+    return web.Response(text=html, content_type="text/html")
 
 
-async def message(request: Request) -> web.Response:
+async def message(request: web.Request) -> web.Response:
     app = request.app
     data = await request.post()
 
     for queue in app[channels]:
         payload = json.dumps(dict(data))
         await queue.put(payload)
-    return Response()
+    return web.Response()
 
 
-async def subscribe(request: Request) -> EventSourceResponse:
+async def subscribe(request: web.Request) -> EventSourceResponse:
     async with sse_response(request) as response:
         app = request.app
         queue: asyncio.Queue[str] = asyncio.Queue()
@@ -111,7 +110,7 @@ async def subscribe(request: Request) -> EventSourceResponse:
 
 
 if __name__ == "__main__":
-    app = Application()
+    app = web.Application()
     app[channels] = set()  # type: ignore[misc]
 
     app.router.add_route("GET", "/", chat)
