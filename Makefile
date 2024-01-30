@@ -16,7 +16,7 @@ test:
 	pytest -sv tests/
 
 cov cover coverage:
-	pytest -sv tests/ --cov=aiohttp_sse --cov-report=html --cov-fail-under 0
+	pytest -sv tests/ --cov=aiohttp_sse --cov-report=html
 	@echo "open file://`pwd`/htmlcov/index.html"
 
 clean:
