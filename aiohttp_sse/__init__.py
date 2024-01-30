@@ -209,6 +209,7 @@ class EventSourceResponse(StreamResponse):
         await self.wait()
 
 
+# TODO(PY313): Use default and remove overloads.
 ESR = TypeVar("ESR", bound=EventSourceResponse)
 
 
