@@ -197,6 +197,7 @@ class EventSourceResponse(StreamResponse):
                 raise asyncio.CancelledError() from exc
 
     async def __aenter__(self) -> "EventSourceResponse":
+        # TODO(PY311): Use Self
         return self
 
     async def __aexit__(
