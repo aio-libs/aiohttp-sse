@@ -197,6 +197,7 @@ class EventSourceResponse(StreamResponse):
                 raise asyncio.CancelledError() from exc
 
     async def __aenter__(self) -> "EventSourceResponse":
+        # TODO(PY311): Use Self
         return self
 
     async def __aexit__(
@@ -209,6 +210,7 @@ class EventSourceResponse(StreamResponse):
         await self.wait()
 
 
+# TODO(PY313): Use default and remove overloads.
 ESR = TypeVar("ESR", bound=EventSourceResponse)
 
 
@@ -232,7 +234,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
-    response_cls: Type[ESR] = ...,
+    response_cls: Type[ESR],
 ) -> _ContextManager[ESR]:
     ...
 
