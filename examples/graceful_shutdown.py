@@ -96,8 +96,8 @@ async def index(_request: web.Request) -> web.StreamResponse:
         <head>
             <script>
                 var eventSource = new EventSource("/hello");
-                eventSource.addEventListener('message', event => {
-                    document.getElementById('response').innerText = event.data;
+                eventSource.addEventListener("message", event => {
+                    document.getElementById("response").innerText = event.data;
                 });
             </script>
         </head>
