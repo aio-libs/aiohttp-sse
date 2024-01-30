@@ -1,6 +1,3 @@
 # .coveragerc to control coverage.py
 [run]
 plugins = covdefaults
-
-[report]
-fail_under = 0
