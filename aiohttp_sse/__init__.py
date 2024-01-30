@@ -232,7 +232,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
-    response_cls: Type[ESR] = ...,
+    response_cls: Type[ESR],
 ) -> _ContextManager[ESR]:
     ...
 
