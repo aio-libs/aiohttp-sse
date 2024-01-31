@@ -22,7 +22,7 @@ class SSEResponse(EventSourceResponse):
         id: Optional[str] = None,
         event: Optional[str] = None,
         retry: Optional[int] = None,
-        json_dumps: Callable[..., str] = partial(json.dumps, indent=2),
+        json_dumps: Callable[[Any], str] = partial(json.dumps, indent=2),
     ) -> None:
         await self.send(json_dumps(data), id=id, event=event, retry=retry)
 
