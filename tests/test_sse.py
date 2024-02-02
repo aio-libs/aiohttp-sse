@@ -492,7 +492,7 @@ async def test_http_methods(aiohttp_client: ClientFixture, http_method: str) -> 
     app.router.add_route(http_method, "/", handler)
 
     client = await aiohttp_client(app)
-    async with client.get("/") as resp:
+    async with client.request(http_method, "/") as resp:
         assert resp.status == 200
         # check streamed data
         streamed_data = await resp.text()
