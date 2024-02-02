@@ -276,7 +276,7 @@ async def test_ping_reset(
     await runner.cleanup()
 
 
-async def test_ping_auto_close(unused_tcp_port: int, session: ClientSession):
+async def test_ping_auto_close(unused_tcp_port: int, session: ClientSession) -> None:
     """Test ping task automatically closed on send failure."""
     connection_closed = asyncio.Event()
 
@@ -288,6 +288,7 @@ async def test_ping_auto_close(unused_tcp_port: int, session: ClientSession):
             with pytest.raises(ConnectionResetError):
                 await sse.send("never-should-be-delivered")
 
+            assert sse._ping_task is not None
             assert sse._ping_task.cancelled()
 
         return sse  # pragma: no cover

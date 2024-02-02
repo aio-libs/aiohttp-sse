@@ -141,7 +141,8 @@ class EventSourceResponse(StreamResponse):
         try:
             await self.write(buffer.getvalue().encode("utf-8"))
         except ConnectionResetError:
-            self._ping_task.cancel()
+            if self._ping_task is not None:  # pragma: no cover
+                self._ping_task.cancel()
             raise
 
     async def wait(self) -> None:
