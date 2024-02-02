@@ -3,21 +3,6 @@
 branch = True
 
 [report]
-exclude_lines =
-    # a more strict default pragma
-    \# pragma: no cover\b
-
-    # allow defensive code
-    ^\s*raise AssertionError\b
-    ^\s*raise NotImplementedError\b
-    ^\s*return NotImplemented\b
-    ^\s*raise$
-
-    # typing-related code
-    ^\s*if (False|TYPE_CHECKING):
-    : \.\.\.(\s*#.*)?$
+exclude_also =
+    ^\s*if TYPE_CHECKING:
     ^ +\.\.\.$
-    -> ['"]?NoReturn['"]?:
-
-    # non-runnable code
-    if __name__ == ['"]__main__['"]:$
