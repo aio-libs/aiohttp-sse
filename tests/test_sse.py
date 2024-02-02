@@ -551,7 +551,7 @@ class TestLastEventId:
 
 @pytest.mark.parametrize(
     "http_method",
-    ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    ("GET", "POST", "PUT", "DELETE", "PATCH"),
 )
 async def test_http_methods(
     unused_tcp_port: int,
@@ -571,7 +571,7 @@ async def test_http_methods(
     url = f"http://127.0.0.1:{unused_tcp_port}/"
 
     resp = await session.request(http_method, url)
-    assert 200 == resp.status
+    assert resp.status == 200
 
     # check streamed data
     streamed_data = await resp.text()
