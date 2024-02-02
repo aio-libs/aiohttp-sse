@@ -482,11 +482,7 @@ class TestLastEventId:
     "http_method",
     ("GET", "POST", "PUT", "DELETE", "PATCH"),
 )
-async def test_http_methods(
-    unused_tcp_port: int,
-    session: ClientSession,
-    http_method: str,
-) -> None:
+async def test_http_methods(aiohttp_client: ClientFixture, http_method: str) -> None:
     async def handler(request: web.Request) -> EventSourceResponse:
         async with sse_response(request) as sse:
             await sse.send("foo")
@@ -495,16 +491,10 @@ async def test_http_methods(
     app = web.Application()
     app.router.add_route(http_method, "/", handler)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
+    client = await aiohttp_client(app)
+    async with client.get("/") as resp:
+        assert resp.status == 200
+        # check streamed data
+        streamed_data = await resp.text()
 
-    resp = await session.request(http_method, url)
-    assert resp.status == 200
-
-    # check streamed data
-    streamed_data = await resp.text()
-    expected = "data: foo\r\n\r\n"
-    assert streamed_data == expected
-
-    await runner.cleanup()
+    assert streamed_data == "data: foo\r\n\r\n"
