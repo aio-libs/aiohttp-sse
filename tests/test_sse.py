@@ -2,7 +2,7 @@ import asyncio
 from typing import List
 
 import pytest
-from aiohttp import web
+from aiohttp import ClientSession, web
 from aiohttp.test_utils import make_mocked_request
 
 from aiohttp_sse import EventSourceResponse, sse_response
@@ -498,3 +498,35 @@ class TestLastEventId:
         sse = EventSourceResponse()
         with pytest.raises(RuntimeError):
             _ = sse.last_event_id
+
+
+@pytest.mark.parametrize(
+    "http_method",
+    ["GET", "POST", "PUT", "DELETE", "PATCH"],
+)
+async def test_http_methods(
+    unused_tcp_port: int,
+    session: ClientSession,
+    http_method: str,
+) -> None:
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request) as sse:
+            await sse.send("foo")
+        return sse
+
+    app = web.Application()
+    app.router.add_route(http_method, "/", handler)
+
+    host = "127.0.0.1"
+    runner = await make_runner(app, host, unused_tcp_port)
+    url = f"http://127.0.0.1:{unused_tcp_port}/"
+
+    resp = await session.request(http_method, url)
+    assert 200 == resp.status
+
+    # check streamed data
+    streamed_data = await resp.text()
+    expected = "data: foo\r\n\r\n"
+    assert streamed_data == expected
+
+    await runner.cleanup()
