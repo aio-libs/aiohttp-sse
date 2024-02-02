@@ -1,10 +1,12 @@
 import asyncio
-import contextlib
 import io
 import re
-from typing import Optional
+from contextlib import suppress
+from types import TracebackType
+from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
 
-from aiohttp.web import HTTPMethodNotAllowed, StreamResponse
+from aiohttp.abc import AbstractStreamWriter
+from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
 
 from .helpers import _ContextManager
 
@@ -30,7 +32,14 @@ class EventSourceResponse(StreamResponse):
     DEFAULT_LAST_EVENT_HEADER = "Last-Event-Id"
     LINE_SEP_EXPR = re.compile(r"\r\n|\r|\n")
 
-    def __init__(self, *, status=200, reason=None, headers=None, sep=None):
+    def __init__(
+        self,
+        *,
+        status: int = 200,
+        reason: Optional[str] = None,
+        headers: Optional[Mapping[str, str]] = None,
+        sep: Optional[str] = None,
+    ):
         super().__init__(status=status, reason=reason)
 
         if headers is not None:
@@ -42,26 +51,27 @@ class EventSourceResponse(StreamResponse):
         self.headers["Connection"] = "keep-alive"
         self.headers["X-Accel-Buffering"] = "no"
 
-        self._ping_interval = self.DEFAULT_PING_INTERVAL
-        self._ping_task = None
+        self._ping_interval: float = self.DEFAULT_PING_INTERVAL
+        self._ping_task: Optional[asyncio.Task[None]] = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
-        return self.prepared and not self._ping_task.done()
+        if not self.prepared or self._ping_task is None:
+            return False
 
-    async def _prepare(self, request):
+        return not self._ping_task.done()
+
+    async def _prepare(self, request: Request) -> "EventSourceResponse":
+        # TODO(PY311): Use Self for return type.
         await self.prepare(request)
         return self
 
-    async def prepare(self, request):
+    async def prepare(self, request: BaseRequest) -> Optional[AbstractStreamWriter]:
         """Prepare for streaming and send HTTP headers.
 
         :param request: regular aiohttp.web.Request.
         """
-        if request.method != "GET":
-            raise HTTPMethodNotAllowed(request.method, ["GET"])
-
         if not self.prepared:
             writer = await super().prepare(request)
             self._ping_task = asyncio.create_task(self._ping())
@@ -76,8 +86,15 @@ class EventSourceResponse(StreamResponse):
             if request.protocol.transport is None:
                 # request disconnected
                 raise asyncio.CancelledError()
+            return self._payload_writer
 
-    async def send(self, data, id=None, event=None, retry=None):
+    async def send(
+        self,
+        data: str,
+        id: Optional[str] = None,
+        event: Optional[str] = None,
+        retry: Optional[int] = None,
+    ) -> None:
         """Send data using EventSource protocol
 
         :param str data: The data field for the message.
@@ -114,17 +131,17 @@ class EventSourceResponse(StreamResponse):
         buffer.write(self._sep)
         await self.write(buffer.getvalue().encode("utf-8"))
 
-    async def wait(self):
+    async def wait(self) -> None:
         """EventSourceResponse object is used for streaming data to the client,
         this method returns future, so we can wait until connection will
         be closed or other task explicitly call ``stop_streaming`` method.
         """
         if self._ping_task is None:
             raise RuntimeError("Response is not started")
-        with contextlib.suppress(asyncio.CancelledError):
+        with suppress(asyncio.CancelledError):
             await self._ping_task
 
-    def stop_streaming(self):
+    def stop_streaming(self) -> None:
         """Used in conjunction with ``wait`` could be called from other task
         to notify client that server no longer wants to stream anything.
         """
@@ -132,13 +149,10 @@ class EventSourceResponse(StreamResponse):
             raise RuntimeError("Response is not started")
         self._ping_task.cancel()
 
-    def enable_compression(self, force=False):
+    def enable_compression(
+        self, force: Union[bool, ContentCoding, None] = False
+    ) -> None:
         raise NotImplementedError
-
-    @property
-    def ping_interval(self):
-        """Time interval between two ping massages"""
-        return self._ping_interval
 
     @property
     def last_event_id(self) -> Optional[str]:
@@ -149,21 +163,26 @@ class EventSourceResponse(StreamResponse):
 
         return self._req.headers.get(self.DEFAULT_LAST_EVENT_HEADER)
 
+    @property
+    def ping_interval(self) -> float:
+        """Time interval between two ping massages"""
+        return self._ping_interval
+
     @ping_interval.setter
-    def ping_interval(self, value):
+    def ping_interval(self, value: float) -> None:
         """Setter for ping_interval property.
 
-        :param int value: interval in sec between two ping values.
+        :param value: interval in sec between two ping values.
         """
 
-        if not isinstance(value, int):
-            raise TypeError("ping interval must be int")
+        if not isinstance(value, (int, float)):
+            raise TypeError("ping interval must be int or float")
         if value < 0:
             raise ValueError("ping interval must be greater then 0")
 
         self._ping_interval = value
 
-    async def _ping(self):
+    async def _ping(self) -> None:
         # periodically send ping to the browser. Any message that
         # starts with ":" colon ignored by a browser and could be used
         # as ping message.
@@ -172,26 +191,62 @@ class EventSourceResponse(StreamResponse):
             try:
                 await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
             except ConnectionResetError:
-                self._ping_task.cancel()
+                if self._ping_task is not None:  # pragma: no cover
+                    self._ping_task.cancel()
+                return
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "EventSourceResponse":
+        # TODO(PY311): Use Self
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
         self.stop_streaming()
         await self.wait()
-        return
+
+
+# TODO(PY313): Use default and remove overloads.
+ESR = TypeVar("ESR", bound=EventSourceResponse)
+
+
+@overload
+def sse_response(
+    request: Request,
+    *,
+    status: int = 200,
+    reason: Optional[str] = None,
+    headers: Optional[Mapping[str, str]] = None,
+    sep: Optional[str] = None,
+) -> _ContextManager[EventSourceResponse]:
+    ...
+
+
+@overload
+def sse_response(
+    request: Request,
+    *,
+    status: int = 200,
+    reason: Optional[str] = None,
+    headers: Optional[Mapping[str, str]] = None,
+    sep: Optional[str] = None,
+    response_cls: Type[ESR],
+) -> _ContextManager[ESR]:
+    ...
 
 
 def sse_response(
-    request,
+    request: Request,
     *,
-    status=200,
-    reason=None,
-    headers=None,
-    sep=None,
-    response_cls=EventSourceResponse,
-):
+    status: int = 200,
+    reason: Optional[str] = None,
+    headers: Optional[Mapping[str, str]] = None,
+    sep: Optional[str] = None,
+    response_cls: Type[EventSourceResponse] = EventSourceResponse,
+) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
             "response_cls must be subclass of "
