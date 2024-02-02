@@ -232,13 +232,12 @@ async def test_ping_reset(
 
 async def test_ping_auto_close(aiohttp_client: ClientFixture) -> None:
     """Test ping task automatically closed on send failure."""
-    connection_closed = asyncio.Event()
 
     async def handler(request: web.Request) -> EventSourceResponse:
         async with sse_response(request) as sse:
             sse.ping_interval = 999
 
-            await connection_closed.wait()
+            request.protocol.force_close()
             with pytest.raises(ConnectionResetError):
                 await sse.send("never-should-be-delivered")
 
@@ -254,12 +253,6 @@ async def test_ping_auto_close(aiohttp_client: ClientFixture) -> None:
 
     async with client.get("/") as response:
         assert 200 == response.status
-
-    await response.wait_for_close()
-    await asyncio.sleep(0.25)
-    assert response.closed
-
-    connection_closed.set()
 
 
 async def test_context_manager(aiohttp_client: ClientFixture) -> None:
