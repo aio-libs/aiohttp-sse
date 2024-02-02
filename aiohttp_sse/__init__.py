@@ -6,13 +6,7 @@ from types import TracebackType
 from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
 
 from aiohttp.abc import AbstractStreamWriter
-from aiohttp.web import (
-    BaseRequest,
-    ContentCoding,
-    HTTPMethodNotAllowed,
-    Request,
-    StreamResponse,
-)
+from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
 
 from .helpers import _ContextManager
 
@@ -78,9 +72,6 @@ class EventSourceResponse(StreamResponse):
 
         :param request: regular aiohttp.web.Request.
         """
-        if request.method != "GET":
-            raise HTTPMethodNotAllowed(request.method, ["GET"])
-
         if not self.prepared:
             writer = await super().prepare(request)
             self._ping_task = asyncio.create_task(self._ping())
