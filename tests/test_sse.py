@@ -60,11 +60,6 @@ async def test_func(with_sse_response: bool, aiohttp_client: ClientFixture) -> N
     )
     assert streamed_data == expected
 
-    # check that EventSourceResponse object works only
-    # with GET method
-    async with await client.post("/") as resp:
-        assert 405 == resp.status
-
 
 async def test_wait_stop_streaming(aiohttp_client: ClientFixture) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
@@ -481,3 +476,35 @@ class TestLastEventId:
         sse = EventSourceResponse()
         with pytest.raises(RuntimeError):
             _ = sse.last_event_id
+
+
+@pytest.mark.parametrize(
+    "http_method",
+    ("GET", "POST", "PUT", "DELETE", "PATCH"),
+)
+async def test_http_methods(
+    unused_tcp_port: int,
+    session: ClientSession,
+    http_method: str,
+) -> None:
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request) as sse:
+            await sse.send("foo")
+        return sse
+
+    app = web.Application()
+    app.router.add_route(http_method, "/", handler)
+
+    host = "127.0.0.1"
+    runner = await make_runner(app, host, unused_tcp_port)
+    url = f"http://127.0.0.1:{unused_tcp_port}/"
+
+    resp = await session.request(http_method, url)
+    assert resp.status == 200
+
+    # check streamed data
+    streamed_data = await resp.text()
+    expected = "data: foo\r\n\r\n"
+    assert streamed_data == expected
+
+    await runner.cleanup()
