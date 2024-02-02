@@ -465,7 +465,7 @@ class TestLastEventId:
 
         last_event_id = "42"
         headers = {EventSourceResponse.DEFAULT_LAST_EVENT_HEADER: last_event_id}
-        async with client.get(url, headers=headers) as resp:
+        async with client.get("/", headers=headers) as resp:
             assert resp.status == 200
 
             # check streamed data
