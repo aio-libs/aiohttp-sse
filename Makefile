@@ -3,8 +3,14 @@
 setup:
 	pip install -r requirements-dev.txt
 	pre-commit install
-lint:
-	pre-commit run --all-files
+
+.PHONY: fmt
+fmt:
+	python -m pre_commit run --all-files --show-diff-on-failure
+
+.PHONY: lint
+lint: fmt
+	mypy
 
 test:
 	pytest -sv tests/
@@ -26,6 +32,7 @@ clean:
 	rm -rf coverage
 	rm -rf build
 	rm -rf cover
+	rm -rf htmlcov
 
 doc:
 	make -C docs html

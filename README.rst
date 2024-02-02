@@ -1,7 +1,7 @@
 aiohttp-sse
 ===========
-.. image:: https://travis-ci.org/aio-libs/aiohttp-sse.svg?branch=master
-    :target: https://travis-ci.org/aio-libs/aiohttp-sse
+.. image:: https://github.com/aio-libs/aiohttp-sse/workflows/CI/badge.svg?event=push
+    :target: https://github.com/aio-libs/aiohttp-sse/actions?query=event%3Apush+branch%3Amaster
 
 .. image:: https://codecov.io/gh/aio-libs/aiohttp-sse/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiohttp-sse
@@ -33,43 +33,46 @@ Example
 .. code:: python
 
     import asyncio
-    from aiohttp import web
-    from aiohttp.web import Response
-    from aiohttp_sse import sse_response
     from datetime import datetime
 
+    from aiohttp import web
 
-    async def hello(request):
+    from aiohttp_sse import sse_response
+
+
+    async def hello(request: web.Request) -> web.StreamResponse:
         async with sse_response(request) as resp:
-            while True:
-                data = 'Server Time : {}'.format(datetime.now())
+            while resp.is_connected():
+                time_dict = {"time": f"Server Time : {datetime.now()}"}
+                data = json.dumps(time_dict, indent=2)
                 print(data)
                 await resp.send(data)
                 await asyncio.sleep(1)
+        return resp
 
 
-    async def index(request):
-        d = """
+    async def index(_request: web.Request) -> web.StreamResponse:
+        html = """
             <html>
-            <body>
-                <script>
-                    var evtSource = new EventSource("/hello");
-                    evtSource.onmessage = function(e) {
-                        document.getElementById('response').innerText = e.data
-                    }
-                </script>
-                <h1>Response from server:</h1>
-                <div id="response"></div>
-            </body>
-        </html>
+                <body>
+                    <script>
+                        var eventSource = new EventSource("/hello");
+                        eventSource.addEventListener("message", event => {
+                            document.getElementById("response").innerText = event.data;
+                        });
+                    </script>
+                    <h1>Response from server:</h1>
+                    <div id="response"></div>
+                </body>
+            </html>
         """
-        return Response(text=d, content_type='text/html')
+        return web.Response(text=html, content_type="text/html")
 
 
     app = web.Application()
-    app.router.add_route('GET', '/hello', hello)
-    app.router.add_route('GET', '/', index)
-    web.run_app(app, host='127.0.0.1', port=8080)
+    app.router.add_route("GET", "/hello", hello)
+    app.router.add_route("GET", "/", index)
+    web.run_app(app, host="127.0.0.1", port=8080)
 
 
 EventSource Protocol
