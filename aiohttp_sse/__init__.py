@@ -221,8 +221,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
-) -> _ContextManager[EventSourceResponse]:
-    ...
+) -> _ContextManager[EventSourceResponse]: ...
 
 
 @overload
@@ -234,8 +233,7 @@ def sse_response(
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
     response_cls: Type[ESR],
-) -> _ContextManager[ESR]:
-    ...
+) -> _ContextManager[ESR]: ...
 
 
 def sse_response(
