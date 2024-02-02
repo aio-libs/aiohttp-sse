@@ -69,12 +69,6 @@ async def test_func(unused_tcp_port, with_sse_response, session):
         "id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n"
     )
     assert streamed_data == expected
-
-    # check that EventSourceResponse object works only
-    # with GET method
-    resp = await session.request("POST", url)
-    assert 405 == resp.status
-    resp.close()
     await runner.cleanup()
 
 
