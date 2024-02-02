@@ -62,8 +62,8 @@ async def test_func(with_sse_response: bool, aiohttp_client: ClientFixture) -> N
 
     # check that EventSourceResponse object works only
     # with GET method
-    resp = await client.post("/")
-    assert 405 == resp.status
+    async with await client.post("/") as resp:
+        assert 405 == resp.status
 
 
 async def test_wait_stop_streaming(aiohttp_client: ClientFixture) -> None:
