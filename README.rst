@@ -1,7 +1,7 @@
 aiohttp-sse
 ===========
-.. image:: https://travis-ci.org/aio-libs/aiohttp-sse.svg?branch=master
-    :target: https://travis-ci.org/aio-libs/aiohttp-sse
+.. image:: https://github.com/aio-libs/aiohttp-sse/workflows/CI/badge.svg?event=push
+    :target: https://github.com/aio-libs/aiohttp-sse/actions?query=event%3Apush+branch%3Amaster
 
 .. image:: https://codecov.io/gh/aio-libs/aiohttp-sse/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/aio-libs/aiohttp-sse
