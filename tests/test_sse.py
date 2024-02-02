@@ -1,21 +1,15 @@
 import asyncio
-from typing import List
+from typing import Awaitable, Callable, List
 
 import pytest
-from aiohttp import ClientSession, web
-from aiohttp.test_utils import make_mocked_request
+from aiohttp import web
+from aiohttp.test_utils import TestClient, make_mocked_request
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
+ClientFixture = Callable[[web.Application], Awaitable[TestClient]]
+
 socket = web.AppKey("socket", List[EventSourceResponse])
-
-
-async def make_runner(app: web.Application, host: str, port: int) -> web.AppRunner:
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host, port)
-    await site.start()
-    return runner
 
 
 @pytest.mark.parametrize(
@@ -23,11 +17,7 @@ async def make_runner(app: web.Application, host: str, port: int) -> web.AppRunn
     (False, True),
     ids=("without_sse_response", "with_sse_response"),
 )
-async def test_func(
-    unused_tcp_port: int,
-    with_sse_response: bool,
-    session: ClientSession,
-) -> None:
+async def test_func(with_sse_response: bool, aiohttp_client: ClientFixture) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         if with_sse_response:
             resp = await sse_response(request, headers={"X-SSE": "aiohttp_sse"})
@@ -46,12 +36,8 @@ async def test_func(
     app.router.add_route("GET", "/", func)
     app.router.add_route("POST", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
-
-    resp = await session.request("GET", url)
+    client = await aiohttp_client(app)
+    resp = await client.get("/")
     assert 200 == resp.status
 
     # make sure that EventSourceResponse supports passing
@@ -76,16 +62,11 @@ async def test_func(
 
     # check that EventSourceResponse object works only
     # with GET method
-    resp = await session.request("POST", url)
+    resp = await client.post("/")
     assert 405 == resp.status
-    resp.close()
-    await runner.cleanup()
 
 
-async def test_wait_stop_streaming(
-    unused_tcp_port: int,
-    session: ClientSession,
-) -> None:
+async def test_wait_stop_streaming(aiohttp_client: ClientFixture) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
         resp = EventSourceResponse()
@@ -99,11 +80,8 @@ async def test_wait_stop_streaming(
     app[socket] = []  # type: ignore[misc]
     app.router.add_route("GET", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
-
-    resp_task = asyncio.create_task(session.request("GET", url))
+    client = await aiohttp_client(app)
+    resp_task = asyncio.create_task(client.get("/"))
 
     await asyncio.sleep(0.1)
     esourse = app[socket][0]
@@ -117,13 +95,8 @@ async def test_wait_stop_streaming(
     expected = "id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n"
     assert streamed_data == expected
 
-    await runner.cleanup()
 
-
-async def test_retry(
-    unused_tcp_port: int,
-    session: ClientSession,
-) -> None:
+async def test_retry(aiohttp_client: ClientFixture) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         resp = EventSourceResponse()
         await resp.prepare(request)
@@ -137,19 +110,14 @@ async def test_retry(
     app = web.Application()
     app.router.add_route("GET", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
-
-    resp = await session.request("GET", url)
+    client = await aiohttp_client(app)
+    resp = await client.get("/")
     assert 200 == resp.status
 
     # check streamed data
     streamed_data = await resp.text()
     expected = "data: foo\r\nretry: 1\r\n\r\n"
     assert streamed_data == expected
-
-    await runner.cleanup()
 
 
 async def test_wait_stop_streaming_errors() -> None:
@@ -196,7 +164,7 @@ class TestPingProperty:
         assert response.ping_interval == response.DEFAULT_PING_INTERVAL
 
 
-async def test_ping(unused_tcp_port: int, session: ClientSession) -> None:
+async def test_ping(aiohttp_client: ClientFixture) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
         resp = EventSourceResponse()
@@ -211,11 +179,8 @@ async def test_ping(unused_tcp_port: int, session: ClientSession) -> None:
     app[socket] = []  # type: ignore[misc]
     app.router.add_route("GET", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
-
-    resp_task = asyncio.create_task(session.request("GET", url))
+    client = await aiohttp_client(app)
+    resp_task = asyncio.create_task(client.get("/"))
 
     await asyncio.sleep(1.15)
     esourse = app[socket][0]
@@ -228,12 +193,10 @@ async def test_ping(unused_tcp_port: int, session: ClientSession) -> None:
 
     expected = "data: foo\r\n\r\n" + ": ping\r\n\r\n"
     assert streamed_data == expected
-    await runner.cleanup()
 
 
 async def test_ping_reset(
-    unused_tcp_port: int,
-    session: ClientSession,
+    aiohttp_client: ClientFixture,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
@@ -250,11 +213,8 @@ async def test_ping_reset(
     app[socket] = []  # type: ignore[misc]
     app.router.add_route("GET", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
-
-    resp_task = asyncio.create_task(session.request("GET", url))
+    client = await aiohttp_client(app)
+    resp_task = asyncio.create_task(client.get("/"))
 
     await asyncio.sleep(1.15)
     esource = app[socket][0]
@@ -273,10 +233,9 @@ async def test_ping_reset(
 
     expected = "data: foo\r\n\r\n" + ": ping\r\n\r\n"
     assert streamed_data == expected
-    await runner.cleanup()
 
 
-async def test_context_manager(unused_tcp_port: int, session: ClientSession) -> None:
+async def test_context_manager(aiohttp_client: ClientFixture) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         h = {"X-SSE": "aiohttp_sse"}
         async with sse_response(request, headers=h) as sse:
@@ -290,11 +249,8 @@ async def test_context_manager(unused_tcp_port: int, session: ClientSession) -> 
     app.router.add_route("GET", "/", func)
     app.router.add_route("POST", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
-
-    resp = await session.request("GET", url)
+    client = await aiohttp_client(app)
+    resp = await client.get("/")
     assert resp.status == 200
 
     # make sure that EventSourceResponse supports passing
@@ -310,7 +266,6 @@ async def test_context_manager(unused_tcp_port: int, session: ClientSession) -> 
         "id: xyz\r\nevent: bar\r\ndata: foo\r\nretry: 1\r\n\r\n"
     )
     assert streamed_data == expected
-    await runner.cleanup()
 
 
 class TestCustomResponseClass:
@@ -334,9 +289,7 @@ class TestCustomResponseClass:
 
 
 @pytest.mark.parametrize("sep", ["\n", "\r", "\r\n"], ids=("LF", "CR", "CR+LF"))
-async def test_custom_sep(
-    unused_tcp_port: int, session: ClientSession, sep: str
-) -> None:
+async def test_custom_sep(aiohttp_client: ClientFixture, sep: str) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         h = {"X-SSE": "aiohttp_sse"}
         async with sse_response(request, headers=h, sep=sep) as sse:
@@ -349,11 +302,8 @@ async def test_custom_sep(
     app = web.Application()
     app.router.add_route("GET", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
-
-    resp = await session.request("GET", url)
+    client = await aiohttp_client(app)
+    resp = await client.get("/")
     assert resp.status == 200
 
     # make sure that EventSourceResponse supports passing
@@ -370,7 +320,6 @@ async def test_custom_sep(
     )
 
     assert streamed_data == expected.format(sep)
-    await runner.cleanup()
 
 
 @pytest.mark.parametrize(
@@ -426,8 +375,7 @@ async def test_custom_sep(
     ),
 )
 async def test_multiline_data(
-    unused_tcp_port: int,
-    session: ClientSession,
+    aiohttp_client: ClientFixture,
     stream_sep: str,
     line_sep: str,
 ) -> None:
@@ -444,11 +392,8 @@ async def test_multiline_data(
     app = web.Application()
     app.router.add_route("GET", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-    url = f"http://127.0.0.1:{unused_tcp_port}/"
-
-    resp = await session.request("GET", url)
+    client = await aiohttp_client(app)
+    resp = await client.get("/")
     assert resp.status == 200
 
     # make sure that EventSourceResponse supports passing
@@ -465,13 +410,10 @@ async def test_multiline_data(
         "retry: 1{0}{0}"
     )
     assert streamed_data == expected.format(stream_sep)
-    await runner.cleanup()
 
 
 class TestSSEState:
-    async def test_context_states(
-        self, unused_tcp_port: int, session: ClientSession
-    ) -> None:
+    async def test_context_states(self, aiohttp_client: ClientFixture) -> None:
         async def func(request: web.Request) -> web.StreamResponse:
             async with sse_response(request) as resp:
                 assert resp.is_connected()
@@ -482,50 +424,37 @@ class TestSSEState:
         app = web.Application()
         app.router.add_route("GET", "/", func)
 
-        host = "127.0.0.1"
-        runner = await make_runner(app, host, unused_tcp_port)
-        await session.request("GET", f"http://{host}:{unused_tcp_port}/")
-        await runner.cleanup()
+        client = await aiohttp_client(app)
+        resp = await client.get("/")
+        assert resp.status == 200
 
     async def test_not_prepared(self) -> None:
         response = EventSourceResponse()
         assert not response.is_connected()
 
 
-async def test_connection_is_not_alive(
-    unused_tcp_port: int,
-    session: ClientSession,
-) -> None:
+async def test_connection_is_not_alive(aiohttp_client: ClientFixture) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         # within context manager first preparation is already done
-        async with sse_response(request) as resp:
-            resp.ping_interval = 1
-
-            # we should sleep to switch asyncio Task
-            # and let connection to be closed
-            while resp.is_connected():
-                await asyncio.sleep(0.01)
+        async with sse_response(request) as sse:
+            request.protocol.force_close()
 
             # this call should be cancelled, cause connection is closed
             with pytest.raises(asyncio.CancelledError):
-                await resp.prepare(request)
+                await sse.prepare(request)
 
-            return resp  # pragma: no cover
+            return sse  # pragma: no cover
 
     app = web.Application()
     app.router.add_route("GET", "/", func)
 
-    host = "127.0.0.1"
-    runner = await make_runner(app, host, unused_tcp_port)
-
-    async with session.get(f"http://{host}:{unused_tcp_port}/") as resp:
+    client = await aiohttp_client(app)
+    async with client.get("/") as resp:
         assert resp.status == 200
-
-    await runner.cleanup()
 
 
 class TestLastEventId:
-    async def test_success(self, unused_tcp_port: int, session: ClientSession) -> None:
+    async def test_success(self, aiohttp_client: ClientFixture) -> None:
         async def func(request: web.Request) -> web.StreamResponse:
             async with sse_response(request) as sse:
                 assert sse.last_event_id is not None
@@ -535,19 +464,18 @@ class TestLastEventId:
         app = web.Application()
         app.router.add_route("GET", "/", func)
 
-        host = "127.0.0.1"
-        runner = await make_runner(app, host, unused_tcp_port)
-        url = f"http://{host}:{unused_tcp_port}/"
+        client = await aiohttp_client(app)
+        async with client.get("/") as resp:
+            assert resp.status == 200
 
         last_event_id = "42"
         headers = {EventSourceResponse.DEFAULT_LAST_EVENT_HEADER: last_event_id}
-        resp = await session.request("GET", url, headers=headers)
-        assert resp.status == 200
+        async with client.get("/", headers=headers) as resp:
+            assert resp.status == 200
 
-        # check streamed data
-        streamed_data = await resp.text()
-        assert streamed_data == f"data: {last_event_id}\r\n\r\n"
-        await runner.cleanup()
+            # check streamed data
+            streamed_data = await resp.text()
+            assert streamed_data == f"data: {last_event_id}\r\n\r\n"
 
     async def test_get_before_prepare(self) -> None:
         sse = EventSourceResponse()

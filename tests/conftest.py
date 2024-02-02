@@ -1,7 +1,6 @@
 from asyncio import AbstractEventLoop
-from typing import AsyncIterator, cast
+from typing import cast
 
-import aiohttp
 import pytest
 
 
@@ -18,9 +17,3 @@ def debug(request: pytest.FixtureRequest) -> bool:
 def loop(event_loop: AbstractEventLoop, debug: bool) -> AbstractEventLoop:
     event_loop.set_debug(debug)
     return event_loop
-
-
-@pytest.fixture
-async def session() -> AsyncIterator[aiohttp.ClientSession]:
-    async with aiohttp.ClientSession() as session:
-        yield session
