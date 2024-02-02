@@ -133,19 +133,19 @@ def test_compression_not_implemented() -> None:
 
 
 class TestPingProperty:
-    @pytest.mark.parametrize("value", [25, 0], ids=("int", "zero int"))
-    def test_success(self, value: int) -> None:
+    @pytest.mark.parametrize("value", (25, 25.0, 0), ids=("int", "float", "zero int"))
+    def test_success(self, value: float) -> None:
         response = EventSourceResponse()
         response.ping_interval = value
         assert response.ping_interval == value
 
     @pytest.mark.parametrize("value", [None, "foo"], ids=("None", "str"))
-    def test_wrong_type(self, value: int) -> None:
+    def test_wrong_type(self, value: float) -> None:
         response = EventSourceResponse()
         with pytest.raises(TypeError) as ctx:
             response.ping_interval = value
 
-        assert ctx.match("ping interval must be int")
+        assert ctx.match("ping interval must be int or float")
 
     def test_negative_int(self) -> None:
         response = EventSourceResponse()
