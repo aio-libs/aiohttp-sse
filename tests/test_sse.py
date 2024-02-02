@@ -249,6 +249,40 @@ async def test_ping_reset(unused_tcp_port, session):
     await runner.cleanup()
 
 
+async def test_ping_auto_close(unused_tcp_port, session):
+    """Test ping task automatically closed on send failure."""
+    connection_closed = asyncio.Event()
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request) as sse:
+            sse.ping_interval = 999
+
+            await connection_closed.wait()
+            with pytest.raises(ConnectionResetError):
+                await sse.send("never-should-be-delivered")
+
+            assert sse._ping_task.cancelled()
+
+        return sse  # pragma: no cover
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+
+    host = "127.0.0.1"
+    runner = await make_runner(app, host, unused_tcp_port)
+    url = f"http://127.0.0.1:{unused_tcp_port}/"
+
+    async with session.request("GET", url) as response:
+        assert 200 == response.status
+
+    await response.wait_for_close()
+    await asyncio.sleep(0.25)
+    assert response.closed
+
+    connection_closed.set()
+    await runner.cleanup()
+
+
 async def test_context_manager(unused_tcp_port, session):
     async def func(request):
         h = {"X-SSE": "aiohttp_sse"}
