@@ -1,5 +1,5 @@
 import asyncio
-from typing import List
+from typing import List, Union
 
 import pytest
 from aiohttp import ClientSession, web
@@ -170,8 +170,8 @@ def test_compression_not_implemented() -> None:
 
 
 class TestPingProperty:
-    @pytest.mark.parametrize("value", [25, 0], ids=("int", "zero int"))
-    def test_success(self, value: int) -> None:
+    @pytest.mark.parametrize("value", [25, 25.0, 0], ids=("int", "float", "zero int"))
+    def test_success(self, value: Union[int, float]) -> None:
         response = EventSourceResponse()
         response.ping_interval = value
         assert response.ping_interval == value
@@ -182,7 +182,7 @@ class TestPingProperty:
         with pytest.raises(TypeError) as ctx:
             response.ping_interval = value
 
-        assert ctx.match("ping interval must be int")
+        assert ctx.match("ping interval must be int or float")
 
     def test_negative_int(self) -> None:
         response = EventSourceResponse()
