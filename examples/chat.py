@@ -1,16 +1,16 @@
 import asyncio
 import json
+from typing import Set
 
 from aiohttp import web
-from aiohttp.web import Application, Response
 
-from aiohttp_sse import sse_response
+from aiohttp_sse import EventSourceResponse, sse_response
 
-channels = web.AppKey("channels", set[asyncio.Queue])
+channels = web.AppKey("channels", Set[asyncio.Queue[str]])
 
 
-def chat(request):
-    d = """
+async def chat(_request: web.Request) -> web.Response:
+    html = """
     <html>
       <head>
         <title>Tiny Chat</title>
@@ -79,29 +79,27 @@ def chat(request):
     </html>
 
     """
-    resp = Response(text=d, content_type="text/html")
-
-    return resp
+    return web.Response(text=html, content_type="text/html")
 
 
-async def message(request):
+async def message(request: web.Request) -> web.Response:
     app = request.app
     data = await request.post()
 
     for queue in app[channels]:
         payload = json.dumps(dict(data))
         await queue.put(payload)
-    return Response()
+    return web.Response()
 
 
-async def subscribe(request):
+async def subscribe(request: web.Request) -> EventSourceResponse:
     async with sse_response(request) as response:
         app = request.app
-        queue = asyncio.Queue()
+        queue: asyncio.Queue[str] = asyncio.Queue()
         print("Someone joined.")
         app[channels].add(queue)
         try:
-            while not response.task.done():
+            while response.is_connected():
                 payload = await queue.get()
                 await response.send(payload)
                 queue.task_done()
@@ -111,10 +109,11 @@ async def subscribe(request):
     return response
 
 
-app = Application()
-app[channels] = set()
+if __name__ == "__main__":
+    app = web.Application()
+    app[channels] = set()  # type: ignore[misc]
 
-app.router.add_route("GET", "/chat", chat)
-app.router.add_route("POST", "/everyone", message)
-app.router.add_route("GET", "/subscribe", subscribe)
-web.run_app(app, host="127.0.0.1", port=8080)
+    app.router.add_route("GET", "/", chat)
+    app.router.add_route("POST", "/everyone", message)
+    app.router.add_route("GET", "/subscribe", subscribe)
+    web.run_app(app, host="127.0.0.1", port=8080)
