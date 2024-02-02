@@ -60,7 +60,7 @@ async def worker(app: web.Application) -> None:
 
 
 async def on_startup(app: web.Application) -> None:
-    app[streams_key] = weakref.WeakSet()  # type: ignore[misc]
+    app[streams_key] = weakref.WeakSet[SSEResponse]()
     app[worker_key] = asyncio.create_task(worker(app))
 
 
