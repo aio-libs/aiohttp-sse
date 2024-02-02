@@ -170,7 +170,7 @@ def test_compression_not_implemented() -> None:
 
 
 class TestPingProperty:
-    @pytest.mark.parametrize("value", [25, 25.0, 0], ids=("int", "float", "zero int"))
+    @pytest.mark.parametrize("value", (25, 25.0, 0), ids=("int", "float", "zero int"))
     def test_success(self, value: float) -> None:
         response = EventSourceResponse()
         response.ping_interval = value
