@@ -57,7 +57,7 @@ class EventSourceResponse(StreamResponse):
         self.headers["Connection"] = "keep-alive"
         self.headers["X-Accel-Buffering"] = "no"
 
-        self._ping_interval: Union[int, float] = self.DEFAULT_PING_INTERVAL
+        self._ping_interval: float = self.DEFAULT_PING_INTERVAL
         self._ping_task: Optional[asyncio.Task[None]] = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
 
@@ -173,12 +173,12 @@ class EventSourceResponse(StreamResponse):
         return self._req.headers.get(self.DEFAULT_LAST_EVENT_HEADER)
 
     @property
-    def ping_interval(self) -> Union[int, float]:
+    def ping_interval(self) -> float:
         """Time interval between two ping massages"""
         return self._ping_interval
 
     @ping_interval.setter
-    def ping_interval(self, value: Union[int, float]) -> None:
+    def ping_interval(self, value: float) -> None:
         """Setter for ping_interval property.
 
         :param value: interval in sec between two ping values.
