@@ -129,7 +129,11 @@ class EventSourceResponse(StreamResponse):
             buffer.write(self._sep)
 
         buffer.write(self._sep)
-        await self.write(buffer.getvalue().encode("utf-8"))
+        try:
+            await self.write(buffer.getvalue().encode("utf-8"))
+        except ConnectionResetError:
+            self.stop_streaming()
+            raise
 
     async def wait(self) -> None:
         """EventSourceResponse object is used for streaming data to the client,

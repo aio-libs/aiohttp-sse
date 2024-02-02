@@ -230,6 +230,31 @@ async def test_ping_reset(
     assert streamed_data == expected
 
 
+async def test_ping_auto_close(aiohttp_client: ClientFixture) -> None:
+    """Test ping task automatically closed on send failure."""
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request) as sse:
+            sse.ping_interval = 999
+
+            request.protocol.force_close()
+            with pytest.raises(ConnectionResetError):
+                await sse.send("never-should-be-delivered")
+
+            assert sse._ping_task is not None
+            assert sse._ping_task.cancelled()
+
+        return sse  # pragma: no cover
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+
+    client = await aiohttp_client(app)
+
+    async with client.get("/") as response:
+        assert 200 == response.status
+
+
 async def test_context_manager(aiohttp_client: ClientFixture) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         h = {"X-SSE": "aiohttp_sse"}
