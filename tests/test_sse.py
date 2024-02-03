@@ -217,10 +217,11 @@ async def test_ping_reset(
     def reset_error_write(data: str) -> None:
         raise ConnectionResetError("Cannot write to closing transport")
 
+    assert esource._ping_task and not esource._ping_task.done()
     monkeypatch.setattr(esource, "write", reset_error_write)
     await esource.wait()
 
-    assert esource._ping_task and esource._ping_task.cancelled()
+    assert esource._ping_task and esource._ping_task.done()
     resp = await resp_task
 
     assert 200 == resp.status
