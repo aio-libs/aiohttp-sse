@@ -148,7 +148,7 @@ class EventSourceResponse(StreamResponse):
 
         except asyncio.CancelledError:
             if (
-                sys.version_info >= (3, 11)
+                sys.version_info >= (3, 11)  # TODO(PY311): remove this condition
                 and (task := asyncio.current_task())
                 and task.cancelling()
             ):
