@@ -1,6 +1,7 @@
 import asyncio
 import io
 import re
+import sys
 from types import TracebackType
 from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
 
@@ -146,7 +147,11 @@ class EventSourceResponse(StreamResponse):
             await self._ping_task
 
         except asyncio.CancelledError:
-            if (task := asyncio.current_task()) and task.cancelling():
+            if (
+                sys.version_info >= (3, 11)
+                and (task := asyncio.current_task())
+                and task.cancelling()
+            ):
                 raise
             return
 
