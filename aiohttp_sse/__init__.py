@@ -1,7 +1,6 @@
 import asyncio
 import io
 import re
-from contextlib import suppress
 from types import TracebackType
 from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
 
@@ -142,8 +141,20 @@ class EventSourceResponse(StreamResponse):
         """
         if self._ping_task is None:
             raise RuntimeError("Response is not started")
-        with suppress(asyncio.CancelledError):
+
+        try:
             await self._ping_task
+
+        except asyncio.CancelledError:
+            if (task := asyncio.current_task()) and task.cancelling():
+                raise
+            return
+
+        except (ConnectionResetError, RuntimeError):
+            # _ping_task may raise:
+            #   ConnectionResetError - on connection issues
+            #   RuntimeError - on writing after EOF
+            return
 
     def stop_streaming(self) -> None:
         """Used in conjunction with ``wait`` could be called from other task
@@ -192,12 +203,7 @@ class EventSourceResponse(StreamResponse):
         # as ping message.
         while True:
             await asyncio.sleep(self._ping_interval)
-            try:
-                await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
-            except ConnectionResetError:
-                if self._ping_task is not None:  # pragma: no cover
-                    self._ping_task.cancel()
-                return
+            await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
 
     async def __aenter__(self) -> "EventSourceResponse":
         # TODO(PY311): Use Self
