@@ -223,8 +223,9 @@ async def test_ping_reset(
     await esource.wait()
 
     assert esource._ping_task.done()
-    resp = await resp_task
+    assert isinstance(esource._ping_task.exception(), ConnectionResetError)
 
+    resp = await resp_task
     assert 200 == resp.status
     streamed_data = await resp.text()
 
