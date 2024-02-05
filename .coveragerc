@@ -2,8 +2,8 @@
 [run]
 branch = True
 include =
-    aiohttp_sse/
-    tests/
+    aiohttp_sse/*
+    tests/*
 
 [report]
 exclude_also =
