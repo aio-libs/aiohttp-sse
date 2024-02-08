@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from typing import Awaitable, Callable, List
 
 import pytest
@@ -525,3 +526,36 @@ async def test_http_methods(aiohttp_client: ClientFixture, http_method: str) -> 
         streamed_data = await resp.text()
 
     assert streamed_data == "data: foo\r\n\r\n"
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason=".cancelling() missing in older versions",
+)
+async def test_cancelled_not_swallowed(aiohttp_client: ClientFixture) -> None:
+    """Test asyncio.CancelledError is not swallowed by .wait().
+
+    Relates to:
+    https://github.com/aio-libs/aiohttp-sse/issues/458
+    """
+
+    async def endless_task(sse: EventSourceResponse) -> None:
+        while True:
+            await sse.wait()
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request) as sse:
+            task = asyncio.create_task(endless_task(sse))
+            await asyncio.sleep(0)
+            task.cancel()
+            await task
+
+        return sse  # pragma: no cover
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+
+    client = await aiohttp_client(app)
+
+    async with client.get("/") as response:
+        assert 200 == response.status

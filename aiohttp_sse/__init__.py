@@ -1,7 +1,7 @@
 import asyncio
 import io
 import re
-from contextlib import suppress
+import sys
 from types import TracebackType
 from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
 
@@ -142,8 +142,16 @@ class EventSourceResponse(StreamResponse):
         """
         if self._ping_task is None:
             raise RuntimeError("Response is not started")
-        with suppress(asyncio.CancelledError):
+
+        try:
             await self._ping_task
+        except asyncio.CancelledError:
+            if (
+                sys.version_info >= (3, 11)
+                and (task := asyncio.current_task())
+                and task.cancelling()
+            ):
+                raise
 
     def stop_streaming(self) -> None:
         """Used in conjunction with ``wait`` could be called from other task
