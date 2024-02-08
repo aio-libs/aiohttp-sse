@@ -528,7 +528,10 @@ async def test_http_methods(aiohttp_client: ClientFixture, http_method: str) -> 
     assert streamed_data == "data: foo\r\n\r\n"
 
 
-@pytest.mark.skipif(sys.version_info < (3, 11), reason="Not supported")
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason=".cancelling() missing in older versions",
+)
 async def test_cancelled_not_swallowed(aiohttp_client: ClientFixture) -> None:
     """Test asyncio.CancelledError is not swallowed by .wait().
 
