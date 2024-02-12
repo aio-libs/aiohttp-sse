@@ -1,6 +1,6 @@
 import asyncio
 import sys
-from typing import Awaitable, Callable, List
+from typing import Awaitable, Callable, List, Optional
 
 import pytest
 from aiohttp import web
@@ -559,3 +559,47 @@ async def test_cancelled_not_swallowed(aiohttp_client: ClientFixture) -> None:
 
     async with client.get("/") as response:
         assert 200 == response.status
+
+
+@pytest.mark.parametrize("timeout", (None, 0.1))
+async def test_with_timeout(
+    aiohttp_client: ClientFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    timeout: Optional[float],
+) -> None:
+    """Test write timeout.
+
+    Relates to this issue:
+    https://github.com/sysid/sse-starlette/issues/89
+    """
+    timeout_raised = False
+
+    async def frozen_write(_data: bytes) -> None:
+        await asyncio.sleep(42)
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        sse = EventSourceResponse(timeout=timeout)
+        sse.ping_interval = 42
+        await sse.prepare(request)
+        monkeypatch.setattr(sse, "write", frozen_write)
+
+        async with sse:
+            try:
+                await sse.send("foo")
+            except TimeoutError:
+                nonlocal timeout_raised
+                timeout_raised = True
+                raise
+
+        return sse
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+
+    client = await aiohttp_client(app)
+    async with client.get("/") as resp:
+        assert resp.status == 200
+        await asyncio.sleep(0.5)
+        assert resp.connection.closed is bool(timeout)
+
+    assert timeout_raised is bool(timeout)
