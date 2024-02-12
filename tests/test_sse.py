@@ -591,7 +591,7 @@ async def test_with_timeout(
                 timeout_raised = True
                 raise
 
-        return sse
+        return sse  # pragma: no cover
 
     app = web.Application()
     app.router.add_route("GET", "/", handler)
@@ -600,6 +600,6 @@ async def test_with_timeout(
     async with client.get("/") as resp:
         assert resp.status == 200
         await asyncio.sleep(0.5)
-        assert resp.connection.closed is bool(timeout)
+        assert resp.connection and resp.connection.closed is bool(timeout)
 
     assert timeout_raised is bool(timeout)
