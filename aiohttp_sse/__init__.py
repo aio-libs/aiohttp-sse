@@ -198,10 +198,11 @@ class EventSourceResponse(StreamResponse):
         # periodically send ping to the browser. Any message that
         # starts with ":" colon ignored by a browser and could be used
         # as ping message.
+        message = ": ping{0}{0}".format(self._sep).encode("utf-8")
         while True:
             await asyncio.sleep(self._ping_interval)
             try:
-                await self.write(": ping{0}{0}".format(self._sep).encode("utf-8"))
+                await self.write(message)
             except (ConnectionResetError, RuntimeError):
                 # RuntimeError - on writing after EOF
                 break
