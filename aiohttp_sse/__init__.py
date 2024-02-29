@@ -10,7 +10,7 @@ from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
 
 from .helpers import _ContextManager
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 __all__ = ["EventSourceResponse", "sse_response"]
 
 
