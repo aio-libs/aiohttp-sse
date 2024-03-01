@@ -9,7 +9,7 @@ CHANGES
 
 - Added typing support.
 - Added ``EventSourceResponse.is_connected()`` method.
-- Added ``EventSourceResponse.last_event_id()`` method.
+- Added ``EventSourceResponse.last_event_id`` attribute.
 - Added support for SSE with HTTP methods other than GET.
 - Added support for float ping intervals.
 - Fixed (on Python 3.11+) ``EventSourceResponse.wait()`` swallowing user cancellation.
