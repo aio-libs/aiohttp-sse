@@ -111,7 +111,7 @@ async def subscribe(request: web.Request) -> EventSourceResponse:
 
 if __name__ == "__main__":
     app = web.Application()
-    app[channels] = set()  # type: ignore[misc]
+    app[channels] = set()
 
     app.router.add_route("GET", "/", chat)
     app.router.add_route("POST", "/everyone", message)

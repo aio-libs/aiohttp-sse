@@ -73,7 +73,7 @@ async def test_wait_stop_streaming(aiohttp_client: ClientFixture) -> None:
         return resp
 
     app = web.Application()
-    app[socket] = []  # type: ignore[misc]
+    app[socket] = []
     app.router.add_route("GET", "/", func)
 
     client = await aiohttp_client(app)
@@ -172,7 +172,7 @@ async def test_ping(aiohttp_client: ClientFixture) -> None:
         return resp
 
     app = web.Application()
-    app[socket] = []  # type: ignore[misc]
+    app[socket] = []
     app.router.add_route("GET", "/", func)
 
     client = await aiohttp_client(app)
@@ -206,7 +206,7 @@ async def test_ping_reset(
         return resp
 
     app = web.Application()
-    app[socket] = []  # type: ignore[misc]
+    app[socket] = []
     app.router.add_route("GET", "/", func)
 
     client = await aiohttp_client(app)
