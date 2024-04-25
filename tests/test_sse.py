@@ -567,29 +567,24 @@ async def test_with_timeout(
     monkeypatch: pytest.MonkeyPatch,
     timeout: Optional[float],
 ) -> None:
-    """Test write timeout.
-
-    Relates to this issue:
-    https://github.com/sysid/sse-starlette/issues/89
-    """
+    """Test that a timeout occurs when client is not reading responses."""
     timeout_raised = False
-
-    async def frozen_write(_data: bytes) -> None:
-        await asyncio.sleep(42)
+    should_raise_timeout = timeout is not None
 
     async def handler(request: web.Request) -> EventSourceResponse:
         sse = EventSourceResponse(timeout=timeout)
-        sse.ping_interval = 42
         await sse.prepare(request)
-        monkeypatch.setattr(sse, "write", frozen_write)
 
         async with sse:
-            try:
-                await sse.send("foo")
-            except TimeoutError:
-                nonlocal timeout_raised
-                timeout_raised = True
-                raise
+            while True:
+                # .send() only yields if socket is full, so yield here to run client.
+                await asyncio.sleep(0)
+                try:
+                    await sse.send("x" * 10000000)  # Enough data to fill socket
+                except TimeoutError:
+                    nonlocal timeout_raised
+                    timeout_raised = True
+                    break
 
         return sse  # pragma: no cover
 
@@ -600,6 +595,4 @@ async def test_with_timeout(
     async with client.get("/") as resp:
         assert resp.status == 200
         await asyncio.sleep(0.5)
-        assert resp.connection and resp.connection.closed is bool(timeout)
-
-    assert timeout_raised is bool(timeout)
+        assert timeout_raised is should_raise_timeout
