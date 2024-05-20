@@ -2,5 +2,5 @@
 aiohttp==3.9.5
 pytest==8.2.0
 pytest-aiohttp==1.0.5
-pytest-asyncio==0.23.6
+pytest-asyncio==0.23.7
 pytest-cov==5.0.0
