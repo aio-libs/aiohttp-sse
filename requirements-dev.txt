@@ -1,4 +1,4 @@
 -r requirements.txt
-mypy==1.11.0
+mypy==1.11.1
 
 pre-commit==3.8.0
