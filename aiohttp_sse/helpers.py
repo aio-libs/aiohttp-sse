@@ -1,5 +1,6 @@
+from collections.abc import Coroutine, Generator
 from types import TracebackType
-from typing import Any, AsyncContextManager, Coroutine, Generator, Optional, TypeVar
+from typing import Any, AsyncContextManager, Optional, TypeVar
 
 T = TypeVar("T", bound=AsyncContextManager["T"])  # type: ignore[misc]
 

@@ -2,8 +2,9 @@ import asyncio
 import io
 import re
 import sys
+from collections.abc import Mapping
 from types import TracebackType
-from typing import Any, Mapping, Optional, TypeVar, Union, overload
+from typing import Any, Optional, TypeVar, Union, overload
 
 from aiohttp.abc import AbstractStreamWriter
 from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
