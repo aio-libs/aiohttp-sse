@@ -1,12 +1,11 @@
 import asyncio
 import json
-from typing import Set
 
 from aiohttp import web
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
-channels = web.AppKey("channels", Set[asyncio.Queue[str]])
+channels = web.AppKey("channels", set[asyncio.Queue[str]])
 
 
 async def chat(_request: web.Request) -> web.Response:

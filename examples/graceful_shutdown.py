@@ -2,10 +2,11 @@ import asyncio
 import json
 import logging
 import weakref
+from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Optional
 
 from aiohttp import web
 
@@ -18,7 +19,7 @@ worker_key = web.AppKey("worker_key", asyncio.Task[None])
 class SSEResponse(EventSourceResponse):
     async def send_json(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         id: Optional[str] = None,
         event: Optional[str] = None,
         retry: Optional[int] = None,
@@ -29,7 +30,7 @@ class SSEResponse(EventSourceResponse):
 
 async def send_event(
     stream: SSEResponse,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     event_id: str,
 ) -> None:
     try:

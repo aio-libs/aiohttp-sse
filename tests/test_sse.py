@@ -1,6 +1,6 @@
 import asyncio
 import sys
-from typing import Awaitable, Callable, List
+from collections.abc import Awaitable, Callable
 
 import pytest
 from aiohttp import web
@@ -10,7 +10,7 @@ from aiohttp_sse import EventSourceResponse, sse_response
 
 ClientFixture = Callable[[web.Application], Awaitable[TestClient]]
 
-socket = web.AppKey("socket", List[EventSourceResponse])
+socket = web.AppKey("socket", list[EventSourceResponse])
 
 
 @pytest.mark.parametrize(
