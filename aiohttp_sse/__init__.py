@@ -3,7 +3,7 @@ import io
 import re
 import sys
 from types import TracebackType
-from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
+from typing import Any, Mapping, Optional, TypeVar, Union, overload
 
 from aiohttp.abc import AbstractStreamWriter
 from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
@@ -213,7 +213,7 @@ class EventSourceResponse(StreamResponse):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
@@ -244,7 +244,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
-    response_cls: Type[ESR],
+    response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
 
 
@@ -255,7 +255,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
-    response_cls: Type[EventSourceResponse] = EventSourceResponse,
+    response_cls: type[EventSourceResponse] = EventSourceResponse,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(

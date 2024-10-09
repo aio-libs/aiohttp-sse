@@ -1,13 +1,5 @@
 from types import TracebackType
-from typing import (
-    Any,
-    AsyncContextManager,
-    Coroutine,
-    Generator,
-    Optional,
-    Type,
-    TypeVar,
-)
+from typing import Any, AsyncContextManager, Coroutine, Generator, Optional, TypeVar
 
 T = TypeVar("T", bound=AsyncContextManager["T"])  # type: ignore[misc]
 
@@ -52,7 +44,7 @@ class _ContextManager(Coroutine[T, None, T]):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc: Optional[BaseException],
         tb: Optional[TracebackType],
     ) -> Optional[bool]:
