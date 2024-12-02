@@ -3,8 +3,8 @@ import sys
 
 import pytest
 from aiohttp import web
+from aiohttp.pytest_plugin import AiohttpClient
 from aiohttp.test_utils import make_mocked_request
-from pytest_aiohttp import AiohttpClient
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
