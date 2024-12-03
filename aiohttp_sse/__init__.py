@@ -2,7 +2,7 @@ import asyncio
 import io
 import re
 import sys
-from collections.abc import Iterable, Mapping, Set
+from collections.abc import Mapping
 from types import TracebackType
 from typing import Any, Optional, TypeVar, Union, overload
 
@@ -33,7 +33,6 @@ class EventSourceResponse(StreamResponse):
     DEFAULT_SEPARATOR = "\r\n"
     DEFAULT_LAST_EVENT_HEADER = "Last-Event-Id"
     LINE_SEP_EXPR = re.compile(r"\r\n|\r|\n")
-    DEFAULT_ALLOWED_METHODS: Set[str] = frozenset(("GET",))
 
     def __init__(
         self,
@@ -42,7 +41,7 @@ class EventSourceResponse(StreamResponse):
         reason: Optional[str] = None,
         headers: Optional[Mapping[str, str]] = None,
         sep: Optional[str] = None,
-        allowed_methods: Optional[Iterable[str]] = None,
+        allow_all_methods: bool = False,
     ):
         super().__init__(status=status, reason=reason)
 
@@ -58,11 +57,7 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval: float = self.DEFAULT_PING_INTERVAL
         self._ping_task: Optional[asyncio.Task[None]] = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
-        self._allowed_methods = (
-            frozenset(allowed_methods)
-            if allowed_methods is not None
-            else self.DEFAULT_ALLOWED_METHODS
-        )
+        self._allow_all_methods = allow_all_methods
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
@@ -81,8 +76,8 @@ class EventSourceResponse(StreamResponse):
 
         :param request: regular aiohttp.web.Request.
         """
-        if request.method not in self._allowed_methods:
-            raise HTTPMethodNotAllowed(request.method, self._allowed_methods)
+        if not self._allow_all_methods and request.method != "GET":
+            raise HTTPMethodNotAllowed(request.method, ["GET"])
 
         if not self.prepared:
             writer = await super().prepare(request)
@@ -245,7 +240,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
-    allowed_methods: Optional[Iterable[str]] = None,
+    allow_all_methods: bool = False,
 ) -> _ContextManager[EventSourceResponse]: ...
 
 
@@ -258,7 +253,7 @@ def sse_response(
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
     response_cls: type[ESR],
-    allowed_methods: Optional[Iterable[str]] = None,
+    allow_all_methods: bool = False,
 ) -> _ContextManager[ESR]: ...
 
 
@@ -270,7 +265,7 @@ def sse_response(
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
-    allowed_methods: Optional[Iterable[str]] = None,
+    allow_all_methods: bool = False,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
@@ -283,6 +278,6 @@ def sse_response(
         reason=reason,
         headers=headers,
         sep=sep,
-        allowed_methods=allowed_methods,
+        allow_all_methods=allow_all_methods,
     )
     return _ContextManager(sse._prepare(request))

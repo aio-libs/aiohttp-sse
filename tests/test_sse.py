@@ -510,10 +510,7 @@ class TestLastEventId:
 )
 async def test_http_methods(aiohttp_client: AiohttpClient, http_method: str) -> None:
     async def handler(request: web.Request) -> EventSourceResponse:
-        async with sse_response(
-            request=request,
-            allowed_methods=("GET", "POST", "PUT", "DELETE", "PATCH"),
-        ) as sse:
+        async with sse_response(request, allow_all_methods=True) as sse:
             await sse.send("foo")
         return sse
 
