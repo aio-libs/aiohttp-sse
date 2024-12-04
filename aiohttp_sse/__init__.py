@@ -12,7 +12,7 @@ from aiohttp.web_exceptions import HTTPMethodNotAllowed
 
 from .helpers import _ContextManager
 
-__version__ = "2.2.0"
+__version__ = "3.0"
 __all__ = ["EventSourceResponse", "sse_response"]
 
 
