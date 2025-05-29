@@ -163,7 +163,9 @@ class EventSourceResponse(StreamResponse):
         self._ping_task.cancel()
 
     def enable_compression(
-        self, force: Union[bool, ContentCoding, None] = False, strategy: int = 0
+        self,
+        force: Union[bool, ContentCoding, None] = False,
+        strategy: Optional[int] = None,
     ) -> None:
         raise NotImplementedError
 
