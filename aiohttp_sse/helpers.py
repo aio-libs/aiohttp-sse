@@ -22,15 +22,15 @@ class _ContextManager(Coroutine[T, None, T]):
         return self._coro.close()  # pragma: no cover
 
     @property
-    def gi_frame(self) -> Any:  # type: ignore[misc]
+    def gi_frame(self) -> Any:
         return self._coro.gi_frame  # type: ignore[attr-defined]  # pragma: no cover
 
     @property
-    def gi_running(self) -> Any:  # type: ignore[misc]
+    def gi_running(self) -> Any:
         return self._coro.gi_running  # type: ignore[attr-defined]  # pragma: no cover
 
     @property
-    def gi_code(self) -> Any:  # type: ignore[misc]
+    def gi_code(self) -> Any:
         return self._coro.gi_code  # type: ignore[attr-defined]  # pragma: no cover
 
     def __next__(self) -> T:
