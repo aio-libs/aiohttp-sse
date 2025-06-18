@@ -1,6 +1,6 @@
 -e .
 aiohttp==3.12.13
-pytest==8.4.0
+pytest==8.4.1
 pytest-aiohttp==1.1.0
 pytest-asyncio==0.26.0
 pytest-cov==6.2.1
