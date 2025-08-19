@@ -2,15 +2,16 @@ import asyncio
 import io
 import re
 import sys
+from collections.abc import Mapping
 from types import TracebackType
-from typing import Any, Mapping, Optional, Type, TypeVar, Union, overload
+from typing import Any, Optional, TypeVar, Union, overload
 
 from aiohttp.abc import AbstractStreamWriter
 from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
 
 from .helpers import _ContextManager
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 __all__ = ["EventSourceResponse", "sse_response"]
 
 
@@ -170,7 +171,9 @@ class EventSourceResponse(StreamResponse):
         self._ping_task.cancel()
 
     def enable_compression(
-        self, force: Union[bool, ContentCoding, None] = False
+        self,
+        force: Union[bool, ContentCoding, None] = False,
+        strategy: Optional[int] = None,
     ) -> None:
         raise NotImplementedError
 
@@ -229,7 +232,7 @@ class EventSourceResponse(StreamResponse):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
@@ -260,7 +263,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
-    response_cls: Type[ESR],
+    response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
 
 
@@ -271,7 +274,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
-    response_cls: Type[EventSourceResponse] = EventSourceResponse,
+    response_cls: type[EventSourceResponse] = EventSourceResponse,
     timeout: Optional[float] = None,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):

@@ -1,12 +1,11 @@
 import asyncio
 import json
-from typing import Set
 
 from aiohttp import web
 
 from aiohttp_sse import EventSourceResponse, sse_response
 
-channels = web.AppKey("channels", Set[asyncio.Queue[str]])
+channels = web.AppKey("channels", set[asyncio.Queue[str]])
 
 
 async def chat(_request: web.Request) -> web.Response:
@@ -111,7 +110,7 @@ async def subscribe(request: web.Request) -> EventSourceResponse:
 
 if __name__ == "__main__":
     app = web.Application()
-    app[channels] = set()  # type: ignore[misc]
+    app[channels] = set()
 
     app.router.add_route("GET", "/", chat)
     app.router.add_route("POST", "/everyone", message)

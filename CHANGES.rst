@@ -4,6 +4,19 @@ CHANGES
 
 .. towncrier release notes start
 
+2.2.0 (2024-02-29)
+==================
+
+- Added typing support.
+- Added ``EventSourceResponse.is_connected()`` method.
+- Added ``EventSourceResponse.last_event_id`` attribute.
+- Added support for SSE with HTTP methods other than GET.
+- Added support for float ping intervals.
+- Fixed (on Python 3.11+) ``EventSourceResponse.wait()`` swallowing user cancellation.
+- Fixed ping task not getting cancelled after a send failure.
+- Cancelled the ping task when a connection error occurs to help avoid errors.
+- Dropped support for Python 3.7 while adding support upto Python 3.12.
+
 2.1.0 (2021-11-13)
 ==================
 

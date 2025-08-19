@@ -1,13 +1,6 @@
+from collections.abc import Coroutine, Generator
 from types import TracebackType
-from typing import (
-    Any,
-    AsyncContextManager,
-    Coroutine,
-    Generator,
-    Optional,
-    Type,
-    TypeVar,
-)
+from typing import Any, AsyncContextManager, Optional, TypeVar
 
 T = TypeVar("T", bound=AsyncContextManager["T"])  # type: ignore[misc]
 
@@ -29,15 +22,15 @@ class _ContextManager(Coroutine[T, None, T]):
         return self._coro.close()  # pragma: no cover
 
     @property
-    def gi_frame(self) -> Any:  # type: ignore[misc]
+    def gi_frame(self) -> Any:
         return self._coro.gi_frame  # type: ignore[attr-defined]  # pragma: no cover
 
     @property
-    def gi_running(self) -> Any:  # type: ignore[misc]
+    def gi_running(self) -> Any:
         return self._coro.gi_running  # type: ignore[attr-defined]  # pragma: no cover
 
     @property
-    def gi_code(self) -> Any:  # type: ignore[misc]
+    def gi_code(self) -> Any:
         return self._coro.gi_code  # type: ignore[attr-defined]  # pragma: no cover
 
     def __next__(self) -> T:
@@ -52,7 +45,7 @@ class _ContextManager(Coroutine[T, None, T]):
 
     async def __aexit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc: Optional[BaseException],
         tb: Optional[TracebackType],
     ) -> Optional[bool]:
