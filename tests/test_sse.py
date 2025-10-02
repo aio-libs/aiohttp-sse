@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from typing import Optional
 
 import pytest
 from aiohttp import web
@@ -557,3 +558,40 @@ async def test_cancelled_not_swallowed(aiohttp_client: AiohttpClient) -> None:
 
     async with client.get("/") as response:
         assert 200 == response.status
+
+
+@pytest.mark.parametrize("timeout", (None, 0.1))
+async def test_with_timeout(
+    aiohttp_client: AiohttpClient,
+    monkeypatch: pytest.MonkeyPatch,
+    timeout: Optional[float],
+) -> None:
+    """Test that a timeout occurs when client is not reading responses."""
+    timeout_raised = False
+    should_raise_timeout = timeout is not None
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        sse = EventSourceResponse(timeout=timeout)
+        await sse.prepare(request)
+
+        async with sse:
+            while True:
+                # .send() only yields if socket is full, so yield here to run client.
+                await asyncio.sleep(0)
+                try:
+                    await sse.send("x" * 10000000)  # Enough data to fill socket
+                except TimeoutError:
+                    nonlocal timeout_raised
+                    timeout_raised = True
+                    break
+
+        return sse  # pragma: no cover
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+
+    client = await aiohttp_client(app)
+    async with client.get("/") as resp:
+        assert resp.status == 200
+        await asyncio.sleep(0.5)
+        assert timeout_raised is should_raise_timeout

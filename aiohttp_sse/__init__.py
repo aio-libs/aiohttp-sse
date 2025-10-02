@@ -40,6 +40,7 @@ class EventSourceResponse(StreamResponse):
         reason: Optional[str] = None,
         headers: Optional[Mapping[str, str]] = None,
         sep: Optional[str] = None,
+        timeout: Optional[float] = None,
     ):
         super().__init__(status=status, reason=reason)
 
@@ -55,6 +56,7 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval: float = self.DEFAULT_PING_INTERVAL
         self._ping_task: Optional[asyncio.Task[None]] = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
+        self._timeout = timeout
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
@@ -131,10 +133,16 @@ class EventSourceResponse(StreamResponse):
 
         buffer.write(self._sep)
         try:
-            await self.write(buffer.getvalue().encode("utf-8"))
+            await asyncio.wait_for(  # TODO(PY311): Use asyncio.timeout
+                self.write(buffer.getvalue().encode("utf-8")),
+                timeout=self._timeout,
+            )
         except ConnectionResetError:
             self.stop_streaming()
             raise
+        except asyncio.TimeoutError:
+            self.stop_streaming()
+            raise TimeoutError
 
     async def wait(self) -> None:
         """EventSourceResponse object is used for streaming data to the client,
@@ -205,8 +213,16 @@ class EventSourceResponse(StreamResponse):
         while True:
             await asyncio.sleep(self._ping_interval)
             try:
-                await self.write(message)
-            except (ConnectionResetError, RuntimeError):
+                await asyncio.wait_for(  # TODO(PY311): Use asyncio.timeout
+                    self.write(message),
+                    timeout=self._timeout,
+                )
+            except (
+                ConnectionResetError,
+                RuntimeError,
+                TimeoutError,
+                asyncio.TimeoutError,
+            ):
                 # RuntimeError - on writing after EOF
                 break
 
@@ -259,6 +275,7 @@ def sse_response(
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
+    timeout: Optional[float] = None,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
@@ -266,5 +283,11 @@ def sse_response(
             "aiohttp_sse.EventSourceResponse, got {}".format(response_cls)
         )
 
-    sse = response_cls(status=status, reason=reason, headers=headers, sep=sep)
+    sse = response_cls(
+        status=status,
+        reason=reason,
+        headers=headers,
+        sep=sep,
+        timeout=timeout,
+    )
     return _ContextManager(sse._prepare(request))
