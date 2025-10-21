@@ -57,10 +57,10 @@ jobs:
       with:
         path: requirements.txt
     - name: Run unittests
-      run: pytest tests
+      run: coverage run -m pytest ./tests
       env:
         COLOR: 'yes'
-    - run: python -m coverage xml
+    - run: coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v5
       with:
