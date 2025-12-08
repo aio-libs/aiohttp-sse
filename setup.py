@@ -25,7 +25,7 @@ class VersionFinder(ast.NodeVisitor):
     def visit_Assign(self, node):
         if not self.version:
             if node.targets[0].id == "__version__":
-                self.version = node.value.s
+                self.version = node.value.value
 
 
 def read_version():
