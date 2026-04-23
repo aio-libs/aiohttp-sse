@@ -510,7 +510,7 @@ class TestLastEventId:
 )
 async def test_http_methods(aiohttp_client: AiohttpClient, http_method: str) -> None:
     async def handler(request: web.Request) -> EventSourceResponse:
-        async with sse_response(request) as sse:
+        async with sse_response(request, allow_all_methods=True) as sse:
             await sse.send("foo")
         return sse
 
@@ -524,6 +524,29 @@ async def test_http_methods(aiohttp_client: AiohttpClient, http_method: str) -> 
         streamed_data = await resp.text()
 
     assert streamed_data == "data: foo\r\n\r\n"
+
+
+@pytest.mark.parametrize(
+    "http_method",
+    ("POST", "PUT", "DELETE", "PATCH"),
+)
+async def test_not_allowed_methods(
+    aiohttp_client: AiohttpClient,
+    http_method: str,
+) -> None:
+    """Check that EventSourceResponse works only with GET method."""
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request) as sse:
+            ...
+        return sse  # pragma: no cover
+
+    app = web.Application()
+    app.router.add_route(http_method, "/", handler)
+
+    client = await aiohttp_client(app)
+    async with client.request(http_method, "/") as resp:
+        assert resp.status == 405
 
 
 @pytest.mark.skipif(
