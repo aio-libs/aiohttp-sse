@@ -8,10 +8,11 @@ from typing import Any, Optional, TypeVar, Union, overload
 
 from aiohttp.abc import AbstractStreamWriter
 from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
+from aiohttp.web_exceptions import HTTPMethodNotAllowed
 
 from .helpers import _ContextManager
 
-__version__ = "2.2.0"
+__version__ = "3.0"
 __all__ = ["EventSourceResponse", "sse_response"]
 
 
@@ -40,6 +41,7 @@ class EventSourceResponse(StreamResponse):
         reason: Optional[str] = None,
         headers: Optional[Mapping[str, str]] = None,
         sep: Optional[str] = None,
+        allow_all_methods: bool = False,
     ):
         super().__init__(status=status, reason=reason)
 
@@ -55,6 +57,7 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval: float = self.DEFAULT_PING_INTERVAL
         self._ping_task: Optional[asyncio.Task[None]] = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
+        self._allow_all_methods = allow_all_methods
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
@@ -73,6 +76,9 @@ class EventSourceResponse(StreamResponse):
 
         :param request: regular aiohttp.web.Request.
         """
+        if not self._allow_all_methods and request.method != "GET":
+            raise HTTPMethodNotAllowed(request.method, ["GET"])
+
         if not self.prepared:
             writer = await super().prepare(request)
             self._ping_task = asyncio.create_task(self._ping())
@@ -236,6 +242,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
+    allow_all_methods: bool = False,
 ) -> _ContextManager[EventSourceResponse]: ...
 
 
@@ -248,6 +255,7 @@ def sse_response(
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
     response_cls: type[ESR],
+    allow_all_methods: bool = False,
 ) -> _ContextManager[ESR]: ...
 
 
@@ -259,6 +267,7 @@ def sse_response(
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
+    allow_all_methods: bool = False,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
@@ -266,5 +275,11 @@ def sse_response(
             "aiohttp_sse.EventSourceResponse, got {}".format(response_cls)
         )
 
-    sse = response_cls(status=status, reason=reason, headers=headers, sep=sep)
+    sse = response_cls(
+        status=status,
+        reason=reason,
+        headers=headers,
+        sep=sep,
+        allow_all_methods=allow_all_methods,
+    )
     return _ContextManager(sse._prepare(request))
