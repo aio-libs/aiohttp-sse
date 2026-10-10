@@ -126,7 +126,7 @@ class EventSourceResponse(StreamResponse):
         assert _TCP_USER_TIMEOUT is not None
         saved = self._saved_tcp_user_timeout
 
-        if sock.fileno() >= 0:  # Not restorable once the socket is closed.
+        if self._tcp_sock.fileno() >= 0:  # Not restorable once the socket is closed.
             self._tcp_sock.setsockopt(socket.IPPROTO_TCP, _TCP_USER_TIMEOUT, saved)
         self._tcp_sock = None
         self._saved_tcp_user_timeout = None
