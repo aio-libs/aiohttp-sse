@@ -157,6 +157,27 @@ class TestPingProperty:
         response = EventSourceResponse()
         assert response.ping_interval == response.DEFAULT_PING_INTERVAL
 
+    @pytest.mark.parametrize("value", (25, 25.0, 0), ids=("int", "float", "zero int"))
+    def test_constructor(self, value: float) -> None:
+        response = EventSourceResponse(ping_interval=value)
+        assert response.ping_interval == value
+
+    def test_constructor_default(self) -> None:
+        response = EventSourceResponse(ping_interval=None)
+        assert response.ping_interval == response.DEFAULT_PING_INTERVAL
+
+    def test_constructor_wrong_type(self) -> None:
+        with pytest.raises(TypeError) as ctx:
+            EventSourceResponse(ping_interval="foo")  # type: ignore[arg-type]
+
+        assert ctx.match("ping interval must be int or float")
+
+    def test_constructor_negative_int(self) -> None:
+        with pytest.raises(ValueError) as ctx:
+            EventSourceResponse(ping_interval=-42)
+
+        assert ctx.match("ping interval must be greater then 0")
+
 
 async def test_ping(aiohttp_client: AiohttpClient) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
@@ -176,6 +197,40 @@ async def test_ping(aiohttp_client: AiohttpClient) -> None:
     client = await aiohttp_client(app)
     resp_task = asyncio.create_task(client.get("/"))
 
+    await asyncio.sleep(1.15)
+    esourse = app[socket][0]
+    esourse.stop_streaming()
+    await esourse.wait()
+    resp = await resp_task
+
+    assert 200 == resp.status
+    streamed_data = await resp.text()
+
+    expected = "data: foo\r\n\r\n" + ": ping\r\n\r\n"
+    assert streamed_data == expected
+
+
+async def test_sse_response_ping_interval(aiohttp_client: AiohttpClient) -> None:
+    """The interval passed to sse_response() applies to the first ping."""
+
+    async def func(request: web.Request) -> web.StreamResponse:
+        app = request.app
+        async with sse_response(request, ping_interval=1) as resp:
+            assert resp.ping_interval == 1
+            await resp.send("foo")
+            app[socket].append(resp)
+            await resp.wait()
+        return resp
+
+    app = web.Application()
+    app[socket] = []
+    app.router.add_route("GET", "/", func)
+
+    client = await aiohttp_client(app)
+    resp_task = asyncio.create_task(client.get("/"))
+
+    # Default interval is 15s: a ping arriving within ~1.15s proves the
+    # configured interval was in place before the ping task's first sleep.
     await asyncio.sleep(1.15)
     esourse = app[socket][0]
     esourse.stop_streaming()
