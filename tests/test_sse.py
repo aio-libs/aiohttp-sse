@@ -1,4 +1,5 @@
 import asyncio
+import socket as sock_mod
 
 import aiohttp
 import pytest
@@ -653,4 +654,90 @@ async def test_abort_when_transport_already_gone() -> None:
         async with asyncio.timeout(5):
             await aborted.wait()
     finally:
+        await runner.cleanup()
+
+
+@pytest.mark.skipif(
+    not hasattr(sock_mod, "TCP_USER_TIMEOUT"),
+    reason="TCP_USER_TIMEOUT is Linux-only",
+)
+async def test_tcp_user_timeout_set(aiohttp_client: AiohttpClient) -> None:
+    """send_timeout is mirrored into TCP_USER_TIMEOUT for kernel detection.
+
+    The asyncio-level timeout only fires once enough data queues to block
+    on flow control; TCP_USER_TIMEOUT detects a hung peer as soon as any
+    write (e.g. a ping) goes unacknowledged for the same duration.
+    """
+    value = None
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request, send_timeout=2.5) as sse:
+            assert request.transport is not None
+            sock = request.transport.get_extra_info("socket")
+            nonlocal value
+            value = sock.getsockopt(sock_mod.IPPROTO_TCP, sock_mod.TCP_USER_TIMEOUT)
+        return sse
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+
+    client = await aiohttp_client(app)
+    async with client.get("/") as resp:
+        assert resp.status == 200
+    assert value == 2500
+
+
+@pytest.mark.skipif(
+    not hasattr(sock_mod, "TCP_USER_TIMEOUT"),
+    reason="TCP_USER_TIMEOUT is Linux-only",
+)
+async def test_tcp_user_timeout_aborts_hung_client() -> None:
+    """The kernel aborts a hung connection long before buffers fill.
+
+    The client's receive window is shrunk so it exhausts after a few KB,
+    while the server writes less than aiohttp's 64KiB flow-control limit:
+    send() returns immediately and no asyncio timer is ever pending, so
+    only TCP_USER_TIMEOUT (zero-window handling, Linux 5.1+) can detect
+    the hung peer.  Without the sockopt this test times out.
+
+    Uses a plain AppRunner so the handler survives the disconnect
+    (TestServer enables handler_cancellation).
+    """
+    loop = asyncio.get_running_loop()
+    woke = asyncio.Event()
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request, send_timeout=1) as sse:
+            sse.ping_interval = 0.1
+            # Over the client's tiny receive window, under the 64KiB
+            # high-water mark, so send() does not block on flow control.
+            await sse.send("x" * 48_000)
+            # Woken by the ping task ending when the kernel aborts.
+            await sse.wait()
+            woke.set()
+        return sse
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+    runner = web.AppRunner(app, shutdown_timeout=1)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = runner.addresses[0][1]
+
+    sock = sock_mod.socket(sock_mod.AF_INET, sock_mod.SOCK_STREAM)
+    try:
+        # Must be set before connect to cap the advertised window.
+        # By reducing the client buffer, we can ensure the stall appears due to
+        # the client not accepting any more data once the buffer is full.
+        sock.setsockopt(sock_mod.SOL_SOCKET, sock_mod.SO_RCVBUF, 4096)
+        sock.setblocking(False)
+        await loop.sock_connect(sock, ("127.0.0.1", port))
+        await loop.sock_sendall(sock, b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        await loop.sock_recv(sock, 1024)  # Headers; then never read again.
+        # send_timeout=1 plus one retransmission backoff; generous margin.
+        async with asyncio.timeout(5):
+            await woke.wait()
+    finally:
+        sock.close()
         await runner.cleanup()

@@ -1,6 +1,7 @@
 import asyncio
 import io
 import re
+import socket
 from collections.abc import Mapping
 from types import TracebackType
 from typing import Any, Self, TypeVar, overload
@@ -12,6 +13,8 @@ from .helpers import _ContextManager
 
 __version__ = "2.2.0"
 __all__ = ["EventSourceResponse", "sse_response"]
+
+_TCP_USER_TIMEOUT = getattr(socket, "TCP_USER_TIMEOUT", None)
 
 
 class EventSourceResponse(StreamResponse):
@@ -75,6 +78,7 @@ class EventSourceResponse(StreamResponse):
         :param request: regular aiohttp.web.Request.
         """
         if not self.prepared:
+            self._set_tcp_user_timeout(request)
             writer = await super().prepare(request)
             self._ping_task = asyncio.create_task(self._ping())
             # explicitly enabling chunked encoding, since content length
@@ -89,6 +93,26 @@ class EventSourceResponse(StreamResponse):
                 # request disconnected
                 raise asyncio.CancelledError()
             return self._payload_writer
+
+    def _set_tcp_user_timeout(self, request: BaseRequest) -> None:
+        """Ask the kernel to abort the connection when transmitted data
+        remains unacknowledged for ``send_timeout`` (Linux only).
+
+        This detects a hung peer as soon as any write goes unacknowledged
+        (including the periodic pings), long before enough data queues up
+        for ``send()`` to block on flow control - which, with autotuned
+        kernel buffers, can take days for a low-rate stream.
+        """
+        if self._send_timeout is None or _TCP_USER_TIMEOUT is None:
+            return
+        assert request.transport is not None
+        sock = request.transport.get_extra_info("socket")
+        if sock is not None:
+            sock.setsockopt(
+                socket.IPPROTO_TCP,
+                _TCP_USER_TIMEOUT,
+                int(self._send_timeout * 1000),
+            )
 
     async def send(
         self,
