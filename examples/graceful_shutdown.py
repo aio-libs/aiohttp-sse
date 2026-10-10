@@ -6,7 +6,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
-from typing import Any, Optional
+from typing import Any
 
 from aiohttp import web
 
@@ -20,9 +20,9 @@ class SSEResponse(EventSourceResponse):
     async def send_json(
         self,
         data: dict[str, Any],
-        id: Optional[str] = None,
-        event: Optional[str] = None,
-        retry: Optional[int] = None,
+        id: str | None = None,
+        event: str | None = None,
+        retry: int | None = None,
         json_dumps: Callable[[Any], str] = partial(json.dumps, indent=2),
     ) -> None:
         await self.send(json_dumps(data), id=id, event=event, retry=retry)
