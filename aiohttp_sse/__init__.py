@@ -131,10 +131,8 @@ class EventSourceResponse(StreamResponse):
 
         buffer.write(self._sep)
         try:
-            await asyncio.wait_for(  # TODO(PY311): Use asyncio.timeout
-                self.write(buffer.getvalue().encode("utf-8")),
-                timeout=self._timeout,
-            )
+            async with asyncio.timeout(self.timeout):
+                await self.write(buffer.getvalue().encode("utf-8"))
         except ConnectionResetError:
             self.stop_streaming()
             raise
@@ -207,10 +205,8 @@ class EventSourceResponse(StreamResponse):
         while True:
             await asyncio.sleep(self._ping_interval)
             try:
-                await asyncio.wait_for(  # TODO(PY311): Use asyncio.timeout
-                    self.write(message),
-                    timeout=self._timeout,
-                )
+                await asyncio.timeout(self._timeout):
+                    await self.write(message)
             except (ConnectionResetError, RuntimeError, TimeoutError):
                 # RuntimeError - on writing after EOF
                 break
@@ -240,6 +236,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
+    timeout: float | None = None,
 ) -> _ContextManager[EventSourceResponse]: ...
 
 
@@ -252,6 +249,7 @@ def sse_response(
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
     response_cls: type[ESR],
+    timeout: float | None = None,
 ) -> _ContextManager[ESR]: ...
 
 
@@ -263,7 +261,7 @@ def sse_response(
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
