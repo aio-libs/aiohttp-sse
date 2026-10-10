@@ -1,6 +1,7 @@
 import asyncio
 import io
 import re
+import socket
 from collections.abc import Mapping
 from types import TracebackType
 from typing import Any, Self, TypeVar, overload
@@ -12,6 +13,8 @@ from .helpers import _ContextManager
 
 __version__ = "2.2.0"
 __all__ = ["EventSourceResponse", "sse_response"]
+
+_TCP_USER_TIMEOUT = getattr(socket, "TCP_USER_TIMEOUT", None)
 
 
 class EventSourceResponse(StreamResponse):
@@ -28,6 +31,7 @@ class EventSourceResponse(StreamResponse):
     """
 
     DEFAULT_PING_INTERVAL = 15
+    DEFAULT_SEND_TIMEOUT: float | None = 120
     DEFAULT_SEPARATOR = "\r\n"
     DEFAULT_LAST_EVENT_HEADER = "Last-Event-Id"
     LINE_SEP_EXPR = re.compile(r"\r\n|\r|\n")
@@ -39,6 +43,7 @@ class EventSourceResponse(StreamResponse):
         reason: str | None = None,
         headers: Mapping[str, str] | None = None,
         sep: str | None = None,
+        send_timeout: float | None = DEFAULT_SEND_TIMEOUT,
     ):
         super().__init__(status=status, reason=reason)
 
@@ -54,6 +59,9 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval: float = self.DEFAULT_PING_INTERVAL
         self._ping_task: asyncio.Task[None] | None = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
+        self._send_timeout = send_timeout
+        self._saved_tcp_user_timeout: int | None = None
+        self._tcp_sock: socket.socket | None = None
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
@@ -72,6 +80,7 @@ class EventSourceResponse(StreamResponse):
         :param request: regular aiohttp.web.Request.
         """
         if not self.prepared:
+            self._set_tcp_user_timeout(request)
             writer = await super().prepare(request)
             self._ping_task = asyncio.create_task(self._ping())
             # explicitly enabling chunked encoding, since content length
@@ -86,6 +95,45 @@ class EventSourceResponse(StreamResponse):
                 # request disconnected
                 raise asyncio.CancelledError()
             return self._payload_writer
+
+    def _set_tcp_user_timeout(self, request: BaseRequest) -> None:
+        """Ask the kernel to abort the connection when transmitted data
+        remains unacknowledged for ``send_timeout`` (Linux only).
+
+        This detects a hung peer as soon as any write goes unacknowledged
+        (including the periodic pings), long before enough data queues up
+        for ``send()`` to block on flow control - which, with autotuned
+        kernel buffers, can take days for a low-rate stream.
+        """
+        if self._send_timeout is None or _TCP_USER_TIMEOUT is None:
+            return
+        assert request.transport is not None
+        sock = request.transport.get_extra_info("socket")
+        if sock is None or sock.family not in (socket.AF_INET, socket.AF_INET6):
+            return
+        self._saved_tcp_user_timeout = sock.getsockopt(
+            socket.IPPROTO_TCP, _TCP_USER_TIMEOUT
+        )
+        self._tcp_sock = sock
+        sock.setsockopt(
+            socket.IPPROTO_TCP, _TCP_USER_TIMEOUT, int(self._send_timeout * 1000)
+        )
+
+    def _restore_tcp_user_timeout(self) -> None:
+        if self._saved_tcp_user_timeout is None:
+            return
+        assert self._tcp_sock is not None
+        assert _TCP_USER_TIMEOUT is not None
+        saved = self._saved_tcp_user_timeout
+
+        if self._tcp_sock.fileno() >= 0:  # Not restorable once the socket is closed.
+            self._tcp_sock.setsockopt(socket.IPPROTO_TCP, _TCP_USER_TIMEOUT, saved)
+        self._tcp_sock = None
+        self._saved_tcp_user_timeout = None
+
+    async def write_eof(self, data: bytes = b"") -> None:
+        await super().write_eof(data)
+        self._restore_tcp_user_timeout()
 
     async def send(
         self,
@@ -107,6 +155,11 @@ class EventSourceResponse(StreamResponse):
             the event. [What code handles this?] This must be an integer,
             specifying the reconnection time in milliseconds. If a non-integer
             value is specified, the field is ignored.
+
+        Raises ``TimeoutError`` and aborts the connection if the write
+        exceeds the response's ``send_timeout`` (i.e. a stalled client).
+        Defaults to ``DEFAULT_SEND_TIMEOUT``; pass ``send_timeout=None``
+        to wait on a stalled client indefinitely.
         """
         buffer = io.StringIO()
         if id is not None:
@@ -129,9 +182,14 @@ class EventSourceResponse(StreamResponse):
 
         buffer.write(self._sep)
         try:
-            await self.write(buffer.getvalue().encode("utf-8"))
+            async with asyncio.timeout(self._send_timeout):
+                await self.write(buffer.getvalue().encode("utf-8"))
         except ConnectionResetError:
             self.stop_streaming()
+            raise
+        except TimeoutError:
+            self.stop_streaming()
+            self._abort_transport()
             raise
 
     async def wait(self) -> None:
@@ -155,6 +213,16 @@ class EventSourceResponse(StreamResponse):
         if self._ping_task is None:
             raise RuntimeError("Response is not started")
         self._ping_task.cancel()
+
+    def _abort_transport(self) -> None:
+        """Abort the transport.
+
+        A stalled peer never drains the write buffer, so a graceful
+        close would block indefinitely; abort instead.
+        """
+        assert self._req is not None
+        if (transport := self._req.transport) is not None:
+            transport.abort()
 
     def enable_compression(
         self,
@@ -199,7 +267,11 @@ class EventSourceResponse(StreamResponse):
         while True:
             await asyncio.sleep(self._ping_interval)
             try:
-                await self.write(message)
+                async with asyncio.timeout(self._send_timeout):
+                    await self.write(message)
+            except TimeoutError:
+                self._abort_transport()
+                break
             except (ConnectionResetError, RuntimeError):
                 # RuntimeError - on writing after EOF
                 break
@@ -229,6 +301,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
+    send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
 ) -> _ContextManager[EventSourceResponse]: ...
 
 
@@ -240,6 +313,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
+    send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
     response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
 
@@ -251,6 +325,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
+    send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
@@ -259,5 +334,11 @@ def sse_response(
             f"aiohttp_sse.EventSourceResponse, got {response_cls}"
         )
 
-    sse = response_cls(status=status, reason=reason, headers=headers, sep=sep)
+    sse = response_cls(
+        status=status,
+        reason=reason,
+        headers=headers,
+        sep=sep,
+        send_timeout=send_timeout,
+    )
     return _ContextManager(sse._prepare(request))
