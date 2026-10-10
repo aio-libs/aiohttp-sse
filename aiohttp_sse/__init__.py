@@ -131,7 +131,7 @@ class EventSourceResponse(StreamResponse):
 
         buffer.write(self._sep)
         try:
-            async with asyncio.timeout(self.timeout):
+            async with asyncio.timeout(self._timeout):
                 await self.write(buffer.getvalue().encode("utf-8"))
         except ConnectionResetError:
             self.stop_streaming()
