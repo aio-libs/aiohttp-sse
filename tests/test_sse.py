@@ -1,6 +1,6 @@
 import asyncio
-import pathlib
 import socket as sock_mod
+import tempfile
 
 import aiohttp
 import pytest
@@ -750,8 +750,12 @@ async def test_tcp_user_timeout_aborts_hung_client() -> None:
     not hasattr(sock_mod, "AF_UNIX"),
     reason="Unix sockets unavailable",
 )
-async def test_unix_socket(tmp_path: pathlib.Path) -> None:
-    """SSE over a Unix socket works: TCP_USER_TIMEOUT must not be applied."""
+async def test_unix_socket() -> None:
+    """SSE over a Unix socket works: TCP_USER_TIMEOUT must not be applied.
+
+    Not using the tmp_path fixture: sun_path is limited to ~104 bytes on
+    macOS and pytest's basetemp exceeds it.
+    """
 
     async def handler(request: web.Request) -> EventSourceResponse:
         async with sse_response(request) as sse:  # Default send_timeout.
@@ -762,17 +766,18 @@ async def test_unix_socket(tmp_path: pathlib.Path) -> None:
     app.router.add_route("GET", "/", handler)
     runner = web.AppRunner(app, shutdown_timeout=1)
     await runner.setup()
-    path = str(tmp_path / "sse.sock")
-    await web.UnixSite(runner, path).start()
+    with tempfile.TemporaryDirectory(dir="/tmp") as tmp_dir:
+        path = f"{tmp_dir}/sse.sock"
+        await web.UnixSite(runner, path).start()
 
-    try:
-        connector = aiohttp.UnixConnector(path=path)
-        async with aiohttp.ClientSession(connector=connector) as session:
-            async with session.get("http://localhost/") as resp:
-                assert resp.status == 200
-                assert await resp.text() == "data: hi\r\n\r\n"
-    finally:
-        await runner.cleanup()
+        try:
+            connector = aiohttp.UnixConnector(path=path)
+            async with aiohttp.ClientSession(connector=connector) as session:
+                async with session.get("http://localhost/") as resp:
+                    assert resp.status == 200
+                    assert await resp.text() == "data: hi\r\n\r\n"
+        finally:
+            await runner.cleanup()
 
 
 @pytest.mark.skipif(
