@@ -558,7 +558,7 @@ async def test_cancelled_not_swallowed(aiohttp_client: AiohttpClient) -> None:
 async def test_with_timeout(
     aiohttp_client: AiohttpClient,
     monkeypatch: pytest.MonkeyPatch,
-    timeout: Optional[float],
+    timeout: float | None,
 ) -> None:
     """Test that a timeout occurs when client is not reading responses."""
     timeout_raised = False
