@@ -1,4 +1,5 @@
 import asyncio
+import pathlib
 import socket as sock_mod
 
 import aiohttp
@@ -618,7 +619,7 @@ async def test_ping_timeout(aiohttp_client: AiohttpClient) -> None:
 
 
 async def test_abort_when_transport_already_gone() -> None:
-    """A timeout can race a disconnect; abort must be a no-op without transport.
+    """A timeout can race a disconnect; cleanup must cope without a transport.
 
     Uses a plain AppRunner because TestServer enables handler_cancellation,
     which would cancel the handler at the moment of disconnect.
@@ -633,6 +634,8 @@ async def test_abort_when_transport_already_gone() -> None:
             # Same state as a timeout firing in the window where the
             # peer already disconnected: no transport left to abort.
             sse._abort_transport()
+            # Restore is equally safe once the socket is closed.
+            sse._restore_tcp_user_timeout()
             aborted.set()
         return sse
 
@@ -741,3 +744,82 @@ async def test_tcp_user_timeout_aborts_hung_client() -> None:
     finally:
         sock.close()
         await runner.cleanup()
+
+
+@pytest.mark.skipif(
+    not hasattr(sock_mod, "AF_UNIX"),
+    reason="Unix sockets unavailable",
+)
+async def test_unix_socket(tmp_path: pathlib.Path) -> None:
+    """SSE over a Unix socket works: TCP_USER_TIMEOUT must not be applied."""
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request) as sse:  # Default send_timeout.
+            await sse.send("hi")
+        return sse
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+    runner = web.AppRunner(app, shutdown_timeout=1)
+    await runner.setup()
+    path = str(tmp_path / "sse.sock")
+    await web.UnixSite(runner, path).start()
+
+    try:
+        connector = aiohttp.UnixConnector(path=path)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            async with session.get("http://localhost/") as resp:
+                assert resp.status == 200
+                assert await resp.text() == "data: hi\r\n\r\n"
+    finally:
+        await runner.cleanup()
+
+
+@pytest.mark.skipif(
+    not hasattr(sock_mod, "TCP_USER_TIMEOUT"),
+    reason="TCP_USER_TIMEOUT is Linux-only",
+)
+async def test_tcp_user_timeout_restored_on_keepalive_reuse(
+    aiohttp_client: AiohttpClient,
+) -> None:
+    seen = []
+
+    def record(request: web.Request) -> None:
+        assert request.transport is not None
+        sock = request.transport.get_extra_info("socket")
+        seen.append(
+            (
+                sock.getpeername(),
+                sock.getsockopt(sock_mod.IPPROTO_TCP, sock_mod.TCP_USER_TIMEOUT),
+            )
+        )
+
+    async def sse_handler(request: web.Request) -> EventSourceResponse:
+        assert request.transport is not None
+        # Simulate a value inherited from the listening socket.
+        request.transport.get_extra_info("socket").setsockopt(
+            sock_mod.IPPROTO_TCP, sock_mod.TCP_USER_TIMEOUT, 7000
+        )
+        async with sse_response(request, send_timeout=1) as sse:
+            record(request)
+            await sse.send("x")
+        return sse
+
+    async def plain_handler(request: web.Request) -> web.Response:
+        record(request)
+        return web.Response(text="ok")
+
+    app = web.Application()
+    app.router.add_route("GET", "/first", sse_handler)
+    app.router.add_route("GET", "/second", plain_handler)
+
+    client = await aiohttp_client(app)
+    async with client.get("/first") as resp:
+        await resp.text()
+    async with client.get("/second") as resp:
+        await resp.text()
+
+    (peer1, timeout1), (peer2, timeout2) = seen
+    assert peer1 == peer2  # Same connection, or the test proves nothing.
+    assert timeout1 == 1000  # Active during the SSE stream.
+    assert timeout2 == 7000  # Original value restored for the next request.

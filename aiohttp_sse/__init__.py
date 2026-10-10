@@ -60,6 +60,8 @@ class EventSourceResponse(StreamResponse):
         self._ping_task: asyncio.Task[None] | None = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
         self._send_timeout = send_timeout
+        self._saved_tcp_user_timeout: int | None = None
+        self._tcp_sock: socket.socket | None = None
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
@@ -107,12 +109,31 @@ class EventSourceResponse(StreamResponse):
             return
         assert request.transport is not None
         sock = request.transport.get_extra_info("socket")
-        if sock is not None:
-            sock.setsockopt(
-                socket.IPPROTO_TCP,
-                _TCP_USER_TIMEOUT,
-                int(self._send_timeout * 1000),
-            )
+        if sock is None or sock.family not in (socket.AF_INET, socket.AF_INET6):
+            return
+        self._saved_tcp_user_timeout = sock.getsockopt(
+            socket.IPPROTO_TCP, _TCP_USER_TIMEOUT
+        )
+        self._tcp_sock = sock
+        sock.setsockopt(
+            socket.IPPROTO_TCP, _TCP_USER_TIMEOUT, int(self._send_timeout * 1000)
+        )
+
+    def _restore_tcp_user_timeout(self) -> None:
+        if self._saved_tcp_user_timeout is None:
+            return
+        assert self._tcp_sock is not None
+        assert _TCP_USER_TIMEOUT is not None
+        saved = self._saved_tcp_user_timeout
+
+        if sock.fileno() >= 0:  # Not restorable once the socket is closed.
+            self._tcp_sock.setsockopt(socket.IPPROTO_TCP, _TCP_USER_TIMEOUT, saved)
+        self._tcp_sock = None
+        self._saved_tcp_user_timeout = None
+
+    async def write_eof(self, data: bytes = b"") -> None:
+        await super().write_eof(data)
+        self._restore_tcp_user_timeout()
 
     async def send(
         self,
