@@ -179,7 +179,6 @@ class TestPingProperty:
         assert ctx.match("ping interval must be greater then 0")
 
 
-
 async def test_ping(aiohttp_client: AiohttpClient) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
