@@ -40,6 +40,7 @@ class EventSourceResponse(StreamResponse):
         reason: Optional[str] = None,
         headers: Optional[Mapping[str, str]] = None,
         sep: Optional[str] = None,
+        ping_interval: Optional[float] = None,
     ):
         super().__init__(status=status, reason=reason)
 
@@ -53,6 +54,9 @@ class EventSourceResponse(StreamResponse):
         self.headers["X-Accel-Buffering"] = "no"
 
         self._ping_interval: float = self.DEFAULT_PING_INTERVAL
+        if ping_interval is not None:
+            # Through the property setter, for validation.
+            self.ping_interval = ping_interval
         self._ping_task: Optional[asyncio.Task[None]] = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
 
@@ -236,6 +240,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
+    ping_interval: Optional[float] = None,
 ) -> _ContextManager[EventSourceResponse]: ...
 
 
@@ -247,6 +252,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
+    ping_interval: Optional[float] = None,
     response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
 
@@ -258,6 +264,7 @@ def sse_response(
     reason: Optional[str] = None,
     headers: Optional[Mapping[str, str]] = None,
     sep: Optional[str] = None,
+    ping_interval: Optional[float] = None,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
@@ -267,4 +274,10 @@ def sse_response(
         )
 
     sse = response_cls(status=status, reason=reason, headers=headers, sep=sep)
+    if ping_interval is not None:
+        # Applied via the property setter rather than the constructor, so
+        # response_cls subclasses with narrower __init__ signatures keep
+        # working.  The ping task only starts in prepare(), so the interval
+        # always takes effect before the first ping.
+        sse.ping_interval = ping_interval
     return _ContextManager(sse._prepare(request))
