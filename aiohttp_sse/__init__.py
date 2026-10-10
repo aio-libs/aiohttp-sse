@@ -28,6 +28,7 @@ class EventSourceResponse(StreamResponse):
     """
 
     DEFAULT_PING_INTERVAL = 15
+    DEFAULT_SEND_TIMEOUT: float | None = 120
     DEFAULT_SEPARATOR = "\r\n"
     DEFAULT_LAST_EVENT_HEADER = "Last-Event-Id"
     LINE_SEP_EXPR = re.compile(r"\r\n|\r|\n")
@@ -39,7 +40,7 @@ class EventSourceResponse(StreamResponse):
         reason: str | None = None,
         headers: Mapping[str, str] | None = None,
         sep: str | None = None,
-        timeout: float | None = None,
+        send_timeout: float | None = DEFAULT_SEND_TIMEOUT,
     ):
         super().__init__(status=status, reason=reason)
 
@@ -55,7 +56,7 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval: float = self.DEFAULT_PING_INTERVAL
         self._ping_task: asyncio.Task[None] | None = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
-        self._timeout = timeout
+        self._send_timeout = send_timeout
 
     def is_connected(self) -> bool:
         """Check connection is prepared and ping task is not done."""
@@ -111,7 +112,9 @@ class EventSourceResponse(StreamResponse):
             value is specified, the field is ignored.
 
         Raises ``TimeoutError`` and aborts the connection if the write
-        exceeds the response's ``timeout`` (i.e. a stalled client).
+        exceeds the response's ``send_timeout`` (i.e. a stalled client).
+        Defaults to ``DEFAULT_SEND_TIMEOUT``; pass ``send_timeout=None``
+        to wait on a stalled client indefinitely.
         """
         buffer = io.StringIO()
         if id is not None:
@@ -134,7 +137,7 @@ class EventSourceResponse(StreamResponse):
 
         buffer.write(self._sep)
         try:
-            async with asyncio.timeout(self._timeout):
+            async with asyncio.timeout(self._send_timeout):
                 await self.write(buffer.getvalue().encode("utf-8"))
         except ConnectionResetError:
             self.stop_streaming()
@@ -219,7 +222,7 @@ class EventSourceResponse(StreamResponse):
         while True:
             await asyncio.sleep(self._ping_interval)
             try:
-                async with asyncio.timeout(self._timeout):
+                async with asyncio.timeout(self._send_timeout):
                     await self.write(message)
             except TimeoutError:
                 self._abort_transport()
@@ -253,7 +256,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
-    timeout: float | None = None,
+    send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
 ) -> _ContextManager[EventSourceResponse]: ...
 
 
@@ -265,7 +268,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
-    timeout: float | None = None,
+    send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
     response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
 
@@ -277,7 +280,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
-    timeout: float | None = None,
+    send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
@@ -291,6 +294,6 @@ def sse_response(
         reason=reason,
         headers=headers,
         sep=sep,
-        timeout=timeout,
+        send_timeout=send_timeout,
     )
     return _ContextManager(sse._prepare(request))

@@ -565,7 +565,7 @@ async def test_with_timeout(
     should_raise_timeout = timeout is not None
 
     async def handler(request: web.Request) -> EventSourceResponse:
-        async with sse_response(request, timeout=timeout) as sse:
+        async with sse_response(request, send_timeout=timeout) as sse:
             while True:
                 # .send() only yields if socket is full, so yield here to run client.
                 await asyncio.sleep(0)
@@ -594,7 +594,7 @@ async def test_ping_timeout(aiohttp_client: AiohttpClient) -> None:
     async def handler(request: web.Request) -> EventSourceResponse:
         # Huge separator makes the ping message itself fill the socket.
         sep = "\r\n" + " " * 10_000_000
-        async with sse_response(request, sep=sep, timeout=0.1) as sse:
+        async with sse_response(request, sep=sep, send_timeout=0.1) as sse:
             sse.ping_interval = 0.01
             # Returns once the timed-out ping stops the stream. The test
             # server then cancels the handler (handler_cancellation=True),
@@ -625,7 +625,7 @@ async def test_abort_when_transport_already_gone() -> None:
     aborted = asyncio.Event()
 
     async def handler(request: web.Request) -> EventSourceResponse:
-        async with sse_response(request, timeout=10) as sse:
+        async with sse_response(request, send_timeout=10) as sse:
             # Wait for connection_lost to clear the transport.
             while request.protocol.transport is not None:
                 await asyncio.sleep(0.01)
