@@ -579,7 +579,7 @@ async def test_with_timeout(
                     timeout_raised = True
                     break
 
-        return sse  # pragma: no cover
+        assert False
 
     app = web.Application()
     app.router.add_route("GET", "/", handler)
