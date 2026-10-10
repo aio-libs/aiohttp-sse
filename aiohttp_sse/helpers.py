@@ -1,8 +1,9 @@
 from collections.abc import Coroutine, Generator
+from contextlib import AbstractAsyncContextManager
 from types import TracebackType
-from typing import Any, AsyncContextManager, Optional, TypeVar
+from typing import Any, TypeVar
 
-T = TypeVar("T", bound=AsyncContextManager["T"])  # type: ignore[misc]
+T = TypeVar("T", bound=AbstractAsyncContextManager["T"])  # type: ignore[misc]
 
 
 class _ContextManager(Coroutine[T, None, T]):
@@ -10,7 +11,7 @@ class _ContextManager(Coroutine[T, None, T]):
 
     def __init__(self, coro: Coroutine[T, None, T]) -> None:
         self._coro = coro
-        self._obj: Optional[T] = None
+        self._obj: T | None = None
 
     def send(self, arg: Any) -> T:
         return self._coro.send(arg)  # pragma: no cover
@@ -45,10 +46,10 @@ class _ContextManager(Coroutine[T, None, T]):
 
     async def __aexit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc: Optional[BaseException],
-        tb: Optional[TracebackType],
-    ) -> Optional[bool]:
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> bool | None:
         if self._obj is None:  # pragma: no cover
             return False
         return await self._obj.__aexit__(exc_type, exc, tb)
