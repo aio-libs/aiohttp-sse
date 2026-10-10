@@ -205,7 +205,7 @@ class EventSourceResponse(StreamResponse):
         while True:
             await asyncio.sleep(self._ping_interval)
             try:
-                await asyncio.timeout(self._timeout):
+                async with asyncio.timeout(self._timeout):
                     await self.write(message)
             except (ConnectionResetError, RuntimeError, TimeoutError):
                 # RuntimeError - on writing after EOF
