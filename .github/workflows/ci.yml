@@ -41,6 +41,7 @@ jobs:
       matrix:
         pyver: ['3.11', '3.12', '3.13', '3.14', '3.15']
         os: [ubuntu, macos, windows]
+        allow-prereleases: true
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 10
     steps:
