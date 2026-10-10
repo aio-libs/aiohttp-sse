@@ -13,9 +13,6 @@ async def chat(_request: web.Request) -> web.Response:
     <html>
       <head>
         <title>Tiny Chat</title>
-        <script
-        src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js">
-        </script>
         <style>
         .messages {
           overflow: scroll;
@@ -38,31 +35,42 @@ async def chat(_request: web.Request) -> web.Response:
 
         </style>
         <script>
-          $(function(){
-            var source = new EventSource("/subscribe");
-            source.addEventListener('message', function(event) {
-              console.log(event.data)
-              message = JSON.parse(event.data);
-              $('.messages').append(
-              "<div class=sender>"+message.sender+"</div>"+
-              "<div class=message>"+message.message+"</div>");
+          document.addEventListener("DOMContentLoaded", () => {
+            const messages = document.querySelector(".messages");
+            const nameEl = document.querySelector(".name");
+            const form = document.querySelector("form");
+            const input = form.querySelector(".message");
+
+            const source = new EventSource("/subscribe");
+            source.addEventListener("message", (event) => {
+              console.log(event.data);
+              const message = JSON.parse(event.data);
+              const sender = document.createElement("div");
+              sender.className = "sender";
+              sender.textContent = message.sender;
+              const text = document.createElement("div");
+              text.className = "message";
+              text.textContent = message.message;
+              messages.append(sender, text);
             });
 
-            $('form').submit(function(e){
+            form.addEventListener("submit", (e) => {
               e.preventDefault();
-              $.post('/everyone',
-                {
-                  sender: $('.name').text(),
-                  message: $('form .message').val()
-                })
-              $('form .message').val('')
+              fetch("/everyone", {
+                method: "POST",
+                body: new URLSearchParams({
+                  sender: nameEl.textContent,
+                  message: input.value,
+                }),
+              });
+              input.value = "";
             });
 
-            $('.change-name').click(function(){
-              name = prompt("Enter your name:");
-              $('.name').text(name);
+            document.querySelector(".change-name").addEventListener("click", () => {
+              const name = prompt("Enter your name:");
+              if (name !== null) nameEl.textContent = name;
             });
-         });
+          });
         </script>
       </head>
       <body>
