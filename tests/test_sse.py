@@ -1,6 +1,4 @@
 import asyncio
-import sys
-from typing import Optional
 
 import pytest
 from aiohttp import web
@@ -527,10 +525,6 @@ async def test_http_methods(aiohttp_client: AiohttpClient, http_method: str) -> 
     assert streamed_data == "data: foo\r\n\r\n"
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason=".cancelling() missing in older versions",
-)
 async def test_cancelled_not_swallowed(aiohttp_client: AiohttpClient) -> None:
     """Test asyncio.CancelledError is not swallowed by .wait().
 

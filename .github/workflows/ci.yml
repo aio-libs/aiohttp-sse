@@ -20,9 +20,9 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: 3.11
         cache: 'pip'
@@ -39,17 +39,18 @@ jobs:
     name: Test
     strategy:
       matrix:
-        pyver: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        pyver: ['3.11', '3.12', '3.13', '3.14', '3.15']
         os: [ubuntu, macos, windows]
     runs-on: ${{ matrix.os }}-latest
     timeout-minutes: 10
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Setup Python ${{ matrix.pyver }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.pyver }}
+        allow-prereleases: true
         cache: 'pip'
         cache-dependency-path: '**/requirements*.txt'
     - name: Install dependencies
@@ -62,7 +63,7 @@ jobs:
         COLOR: 'yes'
     - run: python -m coverage xml
     - name: Upload coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -86,9 +87,9 @@ jobs:
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: 3.11
     - name: Install dependencies

@@ -1,10 +1,9 @@
 import asyncio
 import io
 import re
-import sys
 from collections.abc import Mapping
 from types import TracebackType
-from typing import Any, Optional, TypeVar, Union, overload
+from typing import Any, Self, TypeVar, overload
 
 from aiohttp.abc import AbstractStreamWriter
 from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
@@ -37,10 +36,10 @@ class EventSourceResponse(StreamResponse):
         self,
         *,
         status: int = 200,
-        reason: Optional[str] = None,
-        headers: Optional[Mapping[str, str]] = None,
-        sep: Optional[str] = None,
-        timeout: Optional[float] = None,
+        reason: str | None = None,
+        headers: Mapping[str, str] | None = None,
+        sep: str | None = None,
+        timeout: float | None = None,
     ):
         super().__init__(status=status, reason=reason)
 
@@ -54,7 +53,7 @@ class EventSourceResponse(StreamResponse):
         self.headers["X-Accel-Buffering"] = "no"
 
         self._ping_interval: float = self.DEFAULT_PING_INTERVAL
-        self._ping_task: Optional[asyncio.Task[None]] = None
+        self._ping_task: asyncio.Task[None] | None = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
         self._timeout = timeout
 
@@ -65,12 +64,11 @@ class EventSourceResponse(StreamResponse):
 
         return not self._ping_task.done()
 
-    async def _prepare(self, request: Request) -> "EventSourceResponse":
-        # TODO(PY311): Use Self for return type.
+    async def _prepare(self, request: Request) -> Self:
         await self.prepare(request)
         return self
 
-    async def prepare(self, request: BaseRequest) -> Optional[AbstractStreamWriter]:
+    async def prepare(self, request: BaseRequest) -> AbstractStreamWriter | None:
         """Prepare for streaming and send HTTP headers.
 
         :param request: regular aiohttp.web.Request.
@@ -94,9 +92,9 @@ class EventSourceResponse(StreamResponse):
     async def send(
         self,
         data: str,
-        id: Optional[str] = None,
-        event: Optional[str] = None,
-        retry: Optional[int] = None,
+        id: str | None = None,
+        event: str | None = None,
+        retry: int | None = None,
     ) -> None:
         """Send data using EventSource protocol
 
@@ -155,11 +153,7 @@ class EventSourceResponse(StreamResponse):
         try:
             await self._ping_task
         except asyncio.CancelledError:
-            if (
-                sys.version_info >= (3, 11)
-                and (task := asyncio.current_task())
-                and task.cancelling()
-            ):
+            if (task := asyncio.current_task()) and task.cancelling():
                 raise
 
     def stop_streaming(self) -> None:
@@ -172,13 +166,13 @@ class EventSourceResponse(StreamResponse):
 
     def enable_compression(
         self,
-        force: Union[bool, ContentCoding, None] = False,
-        strategy: Optional[int] = None,
+        force: bool | ContentCoding | None = False,
+        strategy: int | None = None,
     ) -> None:
         raise NotImplementedError
 
     @property
-    def last_event_id(self) -> Optional[str]:
+    def last_event_id(self) -> str | None:
         """Last event ID, requested by client."""
         if self._req is None:
             msg = "EventSource request must be prepared first"
@@ -209,7 +203,7 @@ class EventSourceResponse(StreamResponse):
         # periodically send ping to the browser. Any message that
         # starts with ":" colon ignored by a browser and could be used
         # as ping message.
-        message = ": ping{0}{0}".format(self._sep).encode("utf-8")
+        message = f": ping{self._sep}{self._sep}".encode()
         while True:
             await asyncio.sleep(self._ping_interval)
             try:
@@ -226,15 +220,14 @@ class EventSourceResponse(StreamResponse):
                 # RuntimeError - on writing after EOF
                 break
 
-    async def __aenter__(self) -> "EventSourceResponse":
-        # TODO(PY311): Use Self
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         self.stop_streaming()
         await self.wait()
@@ -249,9 +242,9 @@ def sse_response(
     request: Request,
     *,
     status: int = 200,
-    reason: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    sep: Optional[str] = None,
+    reason: str | None = None,
+    headers: Mapping[str, str] | None = None,
+    sep: str | None = None,
 ) -> _ContextManager[EventSourceResponse]: ...
 
 
@@ -260,9 +253,9 @@ def sse_response(
     request: Request,
     *,
     status: int = 200,
-    reason: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    sep: Optional[str] = None,
+    reason: str | None = None,
+    headers: Mapping[str, str] | None = None,
+    sep: str | None = None,
     response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
 
@@ -271,16 +264,16 @@ def sse_response(
     request: Request,
     *,
     status: int = 200,
-    reason: Optional[str] = None,
-    headers: Optional[Mapping[str, str]] = None,
-    sep: Optional[str] = None,
+    reason: str | None = None,
+    headers: Mapping[str, str] | None = None,
+    sep: str | None = None,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
     timeout: Optional[float] = None,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
             "response_cls must be subclass of "
-            "aiohttp_sse.EventSourceResponse, got {}".format(response_cls)
+            f"aiohttp_sse.EventSourceResponse, got {response_cls}"
         )
 
     sse = response_cls(
