@@ -109,6 +109,9 @@ class EventSourceResponse(StreamResponse):
             the event. [What code handles this?] This must be an integer,
             specifying the reconnection time in milliseconds. If a non-integer
             value is specified, the field is ignored.
+
+        Raises ``TimeoutError`` and aborts the connection if the write
+        exceeds the response's ``timeout`` (i.e. a stalled client).
         """
         buffer = io.StringIO()
         if id is not None:
@@ -138,7 +141,8 @@ class EventSourceResponse(StreamResponse):
             raise
         except TimeoutError:
             self.stop_streaming()
-            raise TimeoutError
+            self._abort_transport()
+            raise
 
     async def wait(self) -> None:
         """EventSourceResponse object is used for streaming data to the client,
@@ -161,6 +165,16 @@ class EventSourceResponse(StreamResponse):
         if self._ping_task is None:
             raise RuntimeError("Response is not started")
         self._ping_task.cancel()
+
+    def _abort_transport(self) -> None:
+        """Abort the transport.
+
+        A stalled peer never drains the write buffer, so a graceful
+        close would block indefinitely; abort instead.
+        """
+        assert self._req is not None
+        if (transport := self._req.transport) is not None:
+            transport.abort()
 
     def enable_compression(
         self,
@@ -207,7 +221,10 @@ class EventSourceResponse(StreamResponse):
             try:
                 async with asyncio.timeout(self._timeout):
                     await self.write(message)
-            except (ConnectionResetError, RuntimeError, TimeoutError):
+            except TimeoutError:
+                self._abort_transport()
+                break
+            except (ConnectionResetError, RuntimeError):
                 # RuntimeError - on writing after EOF
                 break
 
@@ -248,8 +265,8 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
-    response_cls: type[ESR],
     timeout: float | None = None,
+    response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
 
 
@@ -260,8 +277,8 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
-    response_cls: type[EventSourceResponse] = EventSourceResponse,
     timeout: float | None = None,
+    response_cls: type[EventSourceResponse] = EventSourceResponse,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(

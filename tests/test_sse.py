@@ -1,5 +1,6 @@
 import asyncio
 
+import aiohttp
 import pytest
 from aiohttp import web
 from aiohttp.pytest_plugin import AiohttpClient
@@ -557,7 +558,6 @@ async def test_cancelled_not_swallowed(aiohttp_client: AiohttpClient) -> None:
 @pytest.mark.parametrize("timeout", (None, 0.1))
 async def test_with_timeout(
     aiohttp_client: AiohttpClient,
-    monkeypatch: pytest.MonkeyPatch,
     timeout: float | None,
 ) -> None:
     """Test that a timeout occurs when client is not reading responses."""
@@ -565,10 +565,7 @@ async def test_with_timeout(
     should_raise_timeout = timeout is not None
 
     async def handler(request: web.Request) -> EventSourceResponse:
-        sse = EventSourceResponse(timeout=timeout)
-        await sse.prepare(request)
-
-        async with sse:
+        async with sse_response(request, timeout=timeout) as sse:
             while True:
                 # .send() only yields if socket is full, so yield here to run client.
                 await asyncio.sleep(0)
@@ -589,3 +586,71 @@ async def test_with_timeout(
         assert resp.status == 200
         await asyncio.sleep(0.5)
         assert timeout_raised is should_raise_timeout
+
+
+async def test_ping_timeout(aiohttp_client: AiohttpClient) -> None:
+    """Test that a ping write timeout aborts a stalled connection."""
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        # Huge separator makes the ping message itself fill the socket.
+        sep = "\r\n" + " " * 10_000_000
+        async with sse_response(request, sep=sep, timeout=0.1) as sse:
+            sse.ping_interval = 0.01
+            # Returns once the timed-out ping stops the stream. The test
+            # server then cancels the handler (handler_cancellation=True),
+            # so nothing after this await is reachable under test.
+            await sse.wait()
+        assert False
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+
+    client = await aiohttp_client(app)
+    async with client.get("/") as resp:
+        assert resp.status == 200
+        await asyncio.sleep(0.5)  # Let the server stall on a ping and time out.
+        # The server must have aborted the connection; otherwise reading
+        # would stream pings forever (bounded here by the timeout below).
+        with pytest.raises(aiohttp.ClientPayloadError):
+            async with asyncio.timeout(5):
+                await resp.content.read(-1)
+
+
+async def test_abort_when_transport_already_gone() -> None:
+    """A timeout can race a disconnect; abort must be a no-op without transport.
+
+    Uses a plain AppRunner because TestServer enables handler_cancellation,
+    which would cancel the handler at the moment of disconnect.
+    """
+    aborted = asyncio.Event()
+
+    async def handler(request: web.Request) -> EventSourceResponse:
+        async with sse_response(request, timeout=10) as sse:
+            # Wait for connection_lost to clear the transport.
+            while request.protocol.transport is not None:
+                await asyncio.sleep(0.01)
+            # Same state as a timeout firing in the window where the
+            # peer already disconnected: no transport left to abort.
+            sse._abort_transport()
+            aborted.set()
+        return sse
+
+    app = web.Application()
+    app.router.add_route("GET", "/", handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = runner.addresses[0][1]
+
+    try:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        await writer.drain()
+        await reader.readuntil(b"\r\n\r\n")  # Response headers received.
+        writer.close()
+        await writer.wait_closed()
+        async with asyncio.timeout(5):
+            await aborted.wait()
+    finally:
+        await runner.cleanup()
