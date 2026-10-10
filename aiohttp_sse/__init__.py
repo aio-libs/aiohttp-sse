@@ -138,7 +138,7 @@ class EventSourceResponse(StreamResponse):
         except ConnectionResetError:
             self.stop_streaming()
             raise
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.stop_streaming()
             raise TimeoutError
 
@@ -211,12 +211,7 @@ class EventSourceResponse(StreamResponse):
                     self.write(message),
                     timeout=self._timeout,
                 )
-            except (
-                ConnectionResetError,
-                RuntimeError,
-                TimeoutError,
-                asyncio.TimeoutError,
-            ):
+            except (ConnectionResetError, RuntimeError, TimeoutError):
                 # RuntimeError - on writing after EOF
                 break
 
