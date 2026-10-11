@@ -59,8 +59,6 @@ class EventSourceResponse(StreamResponse):
         self.headers["Connection"] = "keep-alive"
         self.headers["X-Accel-Buffering"] = "no"
 
-        if not isinstance(ping_interval, (int, float)):
-            raise TypeError("ping interval must be int or float")
         if ping_interval < 0:
             raise ValueError("ping interval must not be negative")
         self._ping_interval: float = ping_interval
