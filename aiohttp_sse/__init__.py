@@ -8,10 +8,11 @@ from typing import Any, Self, TypeVar, overload
 
 from aiohttp.abc import AbstractStreamWriter
 from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
+from aiohttp.web_exceptions import HTTPMethodNotAllowed
 
 from .helpers import _ContextManager
 
-__version__ = "2.2.0"
+__version__ = "3.0"
 __all__ = ["EventSourceResponse", "sse_response"]
 
 _TCP_USER_TIMEOUT = getattr(socket, "TCP_USER_TIMEOUT", None)
@@ -43,6 +44,7 @@ class EventSourceResponse(StreamResponse):
         reason: str | None = None,
         headers: Mapping[str, str] | None = None,
         sep: str | None = None,
+        allow_all_methods: bool = False,
         send_timeout: float | None = DEFAULT_SEND_TIMEOUT,
     ):
         super().__init__(status=status, reason=reason)
@@ -59,6 +61,7 @@ class EventSourceResponse(StreamResponse):
         self._ping_interval: float = self.DEFAULT_PING_INTERVAL
         self._ping_task: asyncio.Task[None] | None = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
+        self._allow_all_methods = allow_all_methods
         self._send_timeout = send_timeout
         self._saved_tcp_user_timeout: int | None = None
         self._tcp_sock: socket.socket | None = None
@@ -79,6 +82,9 @@ class EventSourceResponse(StreamResponse):
 
         :param request: regular aiohttp.web.Request.
         """
+        if not self._allow_all_methods and request.method != "GET":
+            raise HTTPMethodNotAllowed(request.method, ("GET",))
+
         if not self.prepared:
             self._set_tcp_user_timeout(request)
             writer = await super().prepare(request)
@@ -301,6 +307,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
+    allow_all_methods: bool = False,
     send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
 ) -> _ContextManager[EventSourceResponse]: ...
 
@@ -313,6 +320,7 @@ def sse_response(
     reason: str | None = None,
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
+    allow_all_methods: bool = False,
     send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
     response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
@@ -327,6 +335,7 @@ def sse_response(
     sep: str | None = None,
     send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
+    allow_all_methods: bool = False,
 ) -> Any:
     if not issubclass(response_cls, EventSourceResponse):
         raise TypeError(
@@ -339,6 +348,7 @@ def sse_response(
         reason=reason,
         headers=headers,
         sep=sep,
+        allow_all_methods=allow_all_methods,
         send_timeout=send_timeout,
     )
     return _ContextManager(sse._prepare(request))

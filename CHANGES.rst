@@ -4,6 +4,14 @@ CHANGES
 
 .. towncrier release notes start
 
+3.0 (2025-xx-xx)
+================
+
+- Disallow HTTP methods other than GET by default.
+  Allowing other methods can be done by passing ``allow_all_methods`` to ``EventSourceResponse``.
+  Note that SSE on browsers will only work with GET endpoints, this flag just serves as a
+  reminder.
+
 2.2.0 (2024-02-29)
 ==================
 
