@@ -23,11 +23,11 @@ class EventSourceResponse(StreamResponse):
     streaming data to client, usually browser with EventSource::
 
         async def hello(request):
-            # create response object
-            resp = await EventSourceResponse()
+            resp = EventSourceResponse()
+            await resp.prepare(request)
             async with resp:
                 # stream data
-                resp.send('foo')
+                await resp.send('foo')
             return resp
     """
 
@@ -59,8 +59,8 @@ class EventSourceResponse(StreamResponse):
         self.headers["Connection"] = "keep-alive"
         self.headers["X-Accel-Buffering"] = "no"
 
-        if ping_interval < 0:
-            raise ValueError("ping interval must not be negative")
+        if ping_interval <= 0:
+            raise ValueError("ping interval must be positive")
         self._ping_interval: float = ping_interval
         self._ping_task: asyncio.Task[None] | None = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
@@ -155,15 +155,15 @@ class EventSourceResponse(StreamResponse):
 
         :param str data: The data field for the message.
         :param str id: The event ID to set the EventSource object's last
-            event ID value to.
+            event ID value to. Must not contain line separators or
+            null characters.
         :param str event: The event's type. If this is specified, an event will
             be dispatched on the browser to the listener for the specified
             event name; the web site would use addEventListener() to listen
             for named events. The default event type is "message".
+            Must not contain line separators.
         :param int retry: The reconnection time to use when attempting to send
-            the event. [What code handles this?] This must be an integer,
-            specifying the reconnection time in milliseconds. If a non-integer
-            value is specified, the field is ignored.
+            the event, in milliseconds. Must not be negative.
 
         Raises ``TimeoutError`` and aborts the connection if the write
         exceeds the response's ``send_timeout`` (i.e. a stalled client).
@@ -172,11 +172,17 @@ class EventSourceResponse(StreamResponse):
         """
         buffer = io.StringIO()
         if id is not None:
-            buffer.write(self.LINE_SEP_EXPR.sub("", f"id: {id}"))
+            if self.LINE_SEP_EXPR.search(id) or "\0" in id:
+                raise ValueError(
+                    "id must not contain line separators or null characters"
+                )
+            buffer.write(f"id: {id}")
             buffer.write(self._sep)
 
         if event is not None:
-            buffer.write(self.LINE_SEP_EXPR.sub("", f"event: {event}"))
+            if self.LINE_SEP_EXPR.search(event):
+                raise ValueError("event must not contain line separators")
+            buffer.write(f"event: {event}")
             buffer.write(self._sep)
 
         for chunk in self.LINE_SEP_EXPR.split(data):
@@ -184,8 +190,8 @@ class EventSourceResponse(StreamResponse):
             buffer.write(self._sep)
 
         if retry is not None:
-            if not isinstance(retry, int):
-                raise TypeError("retry argument must be int")
+            if retry < 0:
+                raise ValueError("retry must not be negative")
             buffer.write(f"retry: {retry}")
             buffer.write(self._sep)
 
@@ -235,7 +241,7 @@ class EventSourceResponse(StreamResponse):
 
     def enable_compression(
         self,
-        force: bool | ContentCoding | None = False,
+        force: bool | ContentCoding | None = None,
         strategy: int | None = None,
     ) -> None:
         raise NotImplementedError

@@ -96,8 +96,8 @@ async def test_retry(aiohttp_client: AiohttpClient) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         resp = EventSourceResponse()
         await resp.prepare(request)
-        with pytest.raises(TypeError):
-            await resp.send("foo", retry="one")  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="retry must not be negative"):
+            await resp.send("foo", retry=-1)
         await resp.send("foo", retry=1)
         resp.stop_streaming()
         await resp.wait()
@@ -134,7 +134,7 @@ def test_compression_not_implemented() -> None:
 
 
 class TestPingInterval:
-    @pytest.mark.parametrize("value", (25, 25.0, 0), ids=("int", "float", "zero int"))
+    @pytest.mark.parametrize("value", (25, 25.0), ids=("int", "float"))
     def test_constructor(self, value: float) -> None:
         response = EventSourceResponse(ping_interval=value)
         assert response._ping_interval == value
@@ -143,11 +143,26 @@ class TestPingInterval:
         response = EventSourceResponse()
         assert response._ping_interval == response.DEFAULT_PING_INTERVAL
 
-    def test_negative(self) -> None:
-        with pytest.raises(ValueError) as ctx:
-            EventSourceResponse(ping_interval=-42)
+    @pytest.mark.parametrize("value", (0, -42), ids=("zero", "negative"))
+    def test_not_positive(self, value: float) -> None:
+        with pytest.raises(ValueError, match="ping interval must be positive"):
+            EventSourceResponse(ping_interval=value)
 
-        assert ctx.match("ping interval must not be negative")
+
+@pytest.mark.parametrize("invalid_id", ("a\nb", "a\rb", "a\r\nb", "a\0b"))
+async def test_send_rejects_invalid_id(invalid_id: str) -> None:
+    response = EventSourceResponse()
+    with pytest.raises(
+        ValueError, match="id must not contain line separators or null characters"
+    ):
+        await response.send("foo", id=invalid_id)
+
+
+@pytest.mark.parametrize("invalid_event", ("a\nb", "a\rb", "a\r\nb"))
+async def test_send_rejects_invalid_event(invalid_event: str) -> None:
+    response = EventSourceResponse()
+    with pytest.raises(ValueError, match="event must not contain line separators"):
+        await response.send("foo", event=invalid_event)
 
 
 async def test_ping(aiohttp_client: AiohttpClient) -> None:
