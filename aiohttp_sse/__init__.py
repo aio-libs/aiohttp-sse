@@ -83,7 +83,7 @@ class EventSourceResponse(StreamResponse):
         :param request: regular aiohttp.web.Request.
         """
         if not self._allow_all_methods and request.method != "GET":
-            raise HTTPMethodNotAllowed(request.method, ["GET"])
+            raise HTTPMethodNotAllowed(request.method, ("GET",))
 
         if not self.prepared:
             self._set_tcp_user_timeout(request)
