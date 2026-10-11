@@ -133,59 +133,33 @@ def test_compression_not_implemented() -> None:
         response.enable_compression()
 
 
-class TestPingProperty:
-    @pytest.mark.parametrize("value", (25, 25.0, 0), ids=("int", "float", "zero int"))
-    def test_success(self, value: float) -> None:
-        response = EventSourceResponse()
-        response.ping_interval = value
-        assert response.ping_interval == value
-
-    @pytest.mark.parametrize("value", [None, "foo"], ids=("None", "str"))
-    def test_wrong_type(self, value: float) -> None:
-        response = EventSourceResponse()
-        with pytest.raises(TypeError) as ctx:
-            response.ping_interval = value
-
-        assert ctx.match("ping interval must be int or float")
-
-    def test_negative_int(self) -> None:
-        response = EventSourceResponse()
-        with pytest.raises(ValueError) as ctx:
-            response.ping_interval = -42
-
-        assert ctx.match("ping interval must be greater then 0")
-
-    def test_default_value(self) -> None:
-        response = EventSourceResponse()
-        assert response.ping_interval == response.DEFAULT_PING_INTERVAL
-
+class TestPingInterval:
     @pytest.mark.parametrize("value", (25, 25.0, 0), ids=("int", "float", "zero int"))
     def test_constructor(self, value: float) -> None:
         response = EventSourceResponse(ping_interval=value)
-        assert response.ping_interval == value
+        assert response._ping_interval == value
 
-    def test_constructor_default(self) -> None:
-        response = EventSourceResponse(ping_interval=None)
-        assert response.ping_interval == response.DEFAULT_PING_INTERVAL
+    def test_default_value(self) -> None:
+        response = EventSourceResponse()
+        assert response._ping_interval == response.DEFAULT_PING_INTERVAL
 
-    def test_constructor_wrong_type(self) -> None:
+    def test_wrong_type(self) -> None:
         with pytest.raises(TypeError) as ctx:
             EventSourceResponse(ping_interval="foo")  # type: ignore[arg-type]
 
         assert ctx.match("ping interval must be int or float")
 
-    def test_constructor_negative_int(self) -> None:
+    def test_negative(self) -> None:
         with pytest.raises(ValueError) as ctx:
             EventSourceResponse(ping_interval=-42)
 
-        assert ctx.match("ping interval must be greater then 0")
+        assert ctx.match("ping interval must not be negative")
 
 
 async def test_ping(aiohttp_client: AiohttpClient) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
-        resp = EventSourceResponse()
-        resp.ping_interval = 1
+        resp = EventSourceResponse(ping_interval=1)
         await resp.prepare(request)
         await resp.send("foo")
         app[socket].append(resp)
@@ -218,7 +192,7 @@ async def test_sse_response_ping_interval(aiohttp_client: AiohttpClient) -> None
     async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
         async with sse_response(request, ping_interval=1) as resp:
-            assert resp.ping_interval == 1
+            assert resp._ping_interval == 1
             await resp.send("foo")
             app[socket].append(resp)
             await resp.wait()
@@ -252,8 +226,7 @@ async def test_ping_reset(
 ) -> None:
     async def func(request: web.Request) -> web.StreamResponse:
         app = request.app
-        resp = EventSourceResponse()
-        resp.ping_interval = 1
+        resp = EventSourceResponse(ping_interval=1)
         await resp.prepare(request)
         await resp.send("foo")
         app[socket].append(resp)
@@ -292,9 +265,7 @@ async def test_ping_auto_close(aiohttp_client: AiohttpClient) -> None:
     """Test ping task automatically closed on send failure."""
 
     async def handler(request: web.Request) -> EventSourceResponse:
-        async with sse_response(request) as sse:
-            sse.ping_interval = 999
-
+        async with sse_response(request, ping_interval=999) as sse:
             request.protocol.force_close()
             with pytest.raises(ConnectionResetError):
                 await sse.send("never-should-be-delivered")
@@ -673,8 +644,9 @@ async def test_ping_timeout(aiohttp_client: AiohttpClient) -> None:
     async def handler(request: web.Request) -> EventSourceResponse:
         # Huge separator makes the ping message itself fill the socket.
         sep = "\r\n" + " " * 10_000_000
-        async with sse_response(request, sep=sep, send_timeout=0.1) as sse:
-            sse.ping_interval = 0.01
+        async with sse_response(
+            request, sep=sep, send_timeout=0.1, ping_interval=0.01
+        ) as sse:
             # Returns once the timed-out ping stops the stream. The test
             # server then cancels the handler (handler_cancellation=True),
             # so nothing after this await is reachable under test.
@@ -787,8 +759,7 @@ async def test_tcp_user_timeout_aborts_hung_client() -> None:
     woke = asyncio.Event()
 
     async def handler(request: web.Request) -> EventSourceResponse:
-        async with sse_response(request, send_timeout=1) as sse:
-            sse.ping_interval = 0.1
+        async with sse_response(request, send_timeout=1, ping_interval=0.1) as sse:
             # Over the client's tiny receive window, under the 64KiB
             # high-water mark, so send() does not block on flow control.
             await sse.send("x" * 48_000)

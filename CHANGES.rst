@@ -11,6 +11,10 @@ CHANGES
   Allowing other methods can be done by passing ``allow_all_methods`` to ``EventSourceResponse``.
   Note that SSE on browsers will only work with GET endpoints, this flag just serves as a
   reminder.
+- Added ``ping_interval`` parameter to ``EventSourceResponse`` and ``sse_response()``
+  for configuring the interval between keep-alive pings.
+- Removed the ``EventSourceResponse.ping_interval`` property. The ping interval can
+  now only be set via the ``ping_interval`` parameter when creating the response.
 
 2.2.0 (2024-02-29)
 ==================
