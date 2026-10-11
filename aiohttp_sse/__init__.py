@@ -346,5 +346,5 @@ def sse_response(
 @asynccontextmanager
 async def _stream(sse: ESR, request: Request) -> AsyncIterator[ESR]:
     await sse.prepare(request)
-    async with sse:
-        yield sse
+    async with sse as resp:
+        yield resp
