@@ -23,6 +23,10 @@ CHANGES
 - ``send()`` now raises ``ValueError`` for a negative ``retry`` instead of
   sending a value that clients would ignore. The runtime ``TypeError`` for
   non-``int`` values has been removed (use a type checker).
+- ``sse_response()`` is now usable only as an async context manager; the
+  ``resp = await sse_response(...)`` form has been removed. To manage the
+  response manually, instantiate ``EventSourceResponse`` and call
+  ``prepare()`` directly.
 
 2.2.0 (2024-02-29)
 ==================
