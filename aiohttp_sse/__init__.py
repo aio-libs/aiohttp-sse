@@ -31,7 +31,7 @@ class EventSourceResponse(StreamResponse):
             return resp
     """
 
-    DEFAULT_PING_INTERVAL = 15
+    DEFAULT_PING_INTERVAL: float = 15
     DEFAULT_SEND_TIMEOUT: float | None = 120
     DEFAULT_SEPARATOR = "\r\n"
     DEFAULT_LAST_EVENT_HEADER = "Last-Event-Id"
@@ -46,6 +46,7 @@ class EventSourceResponse(StreamResponse):
         sep: str | None = None,
         allow_all_methods: bool = False,
         send_timeout: float | None = DEFAULT_SEND_TIMEOUT,
+        ping_interval: float = DEFAULT_PING_INTERVAL,
     ):
         super().__init__(status=status, reason=reason)
 
@@ -58,7 +59,9 @@ class EventSourceResponse(StreamResponse):
         self.headers["Connection"] = "keep-alive"
         self.headers["X-Accel-Buffering"] = "no"
 
-        self._ping_interval: float = self.DEFAULT_PING_INTERVAL
+        if ping_interval < 0:
+            raise ValueError("ping interval must not be negative")
+        self._ping_interval: float = ping_interval
         self._ping_task: asyncio.Task[None] | None = None
         self._sep = sep if sep is not None else self.DEFAULT_SEPARATOR
         self._allow_all_methods = allow_all_methods
@@ -246,25 +249,6 @@ class EventSourceResponse(StreamResponse):
 
         return self._req.headers.get(self.DEFAULT_LAST_EVENT_HEADER)
 
-    @property
-    def ping_interval(self) -> float:
-        """Time interval between two ping massages"""
-        return self._ping_interval
-
-    @ping_interval.setter
-    def ping_interval(self, value: float) -> None:
-        """Setter for ping_interval property.
-
-        :param value: interval in sec between two ping values.
-        """
-
-        if not isinstance(value, (int, float)):
-            raise TypeError("ping interval must be int or float")
-        if value < 0:
-            raise ValueError("ping interval must be greater then 0")
-
-        self._ping_interval = value
-
     async def _ping(self) -> None:
         # periodically send ping to the browser. Any message that
         # starts with ":" colon ignored by a browser and could be used
@@ -309,6 +293,7 @@ def sse_response(
     sep: str | None = None,
     allow_all_methods: bool = False,
     send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
+    ping_interval: float = EventSourceResponse.DEFAULT_PING_INTERVAL,
 ) -> _ContextManager[EventSourceResponse]: ...
 
 
@@ -322,6 +307,7 @@ def sse_response(
     sep: str | None = None,
     allow_all_methods: bool = False,
     send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
+    ping_interval: float = EventSourceResponse.DEFAULT_PING_INTERVAL,
     response_cls: type[ESR],
 ) -> _ContextManager[ESR]: ...
 
@@ -334,6 +320,7 @@ def sse_response(
     headers: Mapping[str, str] | None = None,
     sep: str | None = None,
     send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
+    ping_interval: float = EventSourceResponse.DEFAULT_PING_INTERVAL,
     response_cls: type[EventSourceResponse] = EventSourceResponse,
     allow_all_methods: bool = False,
 ) -> Any:
@@ -350,5 +337,6 @@ def sse_response(
         sep=sep,
         allow_all_methods=allow_all_methods,
         send_timeout=send_timeout,
+        ping_interval=ping_interval,
     )
     return _ContextManager(sse._prepare(request))
