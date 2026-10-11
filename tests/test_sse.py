@@ -541,7 +541,7 @@ async def test_not_allowed_methods(
     async def handler(request: web.Request) -> EventSourceResponse:
         async with sse_response(request) as sse:
             ...
-        return sse  # pragma: no cover
+        assert False
 
     app = web.Application()
     app.router.add_route(http_method, "/", handler)
