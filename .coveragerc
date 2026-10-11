@@ -5,5 +5,7 @@ branch = True
 [report]
 exclude_also =
     ^\s*if TYPE_CHECKING:
+    assert False
     : \.\.\.(\s*#.*)?$
     ^ +\.\.\.$
+    pytest.fail\(

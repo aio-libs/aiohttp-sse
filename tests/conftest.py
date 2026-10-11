@@ -1,4 +1,5 @@
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, get_running_loop
+from collections.abc import AsyncIterator
 from typing import cast
 
 import pytest
@@ -14,6 +15,7 @@ def debug(request: pytest.FixtureRequest) -> bool:
 
 
 @pytest.fixture(autouse=True)
-def loop(event_loop: AbstractEventLoop, debug: bool) -> AbstractEventLoop:
+async def loop(debug: bool) -> AsyncIterator[AbstractEventLoop]:
+    event_loop = get_running_loop()
     event_loop.set_debug(debug)
-    return event_loop
+    yield event_loop
