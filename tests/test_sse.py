@@ -19,16 +19,20 @@ socket = web.AppKey("socket", list[EventSourceResponse])
     ids=("without_sse_response", "with_sse_response"),
 )
 async def test_func(with_sse_response: bool, aiohttp_client: AiohttpClient) -> None:
-    async def func(request: web.Request) -> web.StreamResponse:
-        if with_sse_response:
-            resp = await sse_response(request, headers={"X-SSE": "aiohttp_sse"})
-        else:
-            resp = EventSourceResponse(headers={"X-SSE": "aiohttp_sse"})
-            await resp.prepare(request)
+    async def send_all(resp: EventSourceResponse) -> None:
         await resp.send("foo")
         await resp.send("foo", event="bar")
         await resp.send("foo", event="bar", id="xyz")
         await resp.send("foo", event="bar", id="xyz", retry=1)
+
+    async def func(request: web.Request) -> web.StreamResponse:
+        if with_sse_response:
+            async with sse_response(request, headers={"X-SSE": "aiohttp_sse"}) as resp:
+                await send_all(resp)
+            return resp
+        resp = EventSourceResponse(headers={"X-SSE": "aiohttp_sse"})
+        await resp.prepare(request)
+        await send_all(resp)
         resp.stop_streaming()
         await resp.wait()
         return resp
@@ -298,7 +302,8 @@ class TestCustomResponseClass:
             pass
 
         request = make_mocked_request("GET", "/")
-        await sse_response(request, response_cls=CustomEventSource)
+        async with sse_response(request, response_cls=CustomEventSource) as resp:
+            assert isinstance(resp, CustomEventSource)
 
     async def test_not_related_class(self) -> None:
         class CustomClass:
@@ -306,7 +311,7 @@ class TestCustomResponseClass:
 
         request = make_mocked_request("GET", "/")
         with pytest.raises(TypeError):
-            await sse_response(
+            sse_response(
                 request=request,
                 response_cls=CustomClass,  # type: ignore[type-var]
             )

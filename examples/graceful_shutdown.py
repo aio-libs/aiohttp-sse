@@ -82,12 +82,12 @@ async def on_shutdown(app: web.Application) -> None:
 
 
 async def hello(request: web.Request) -> web.StreamResponse:
-    stream: SSEResponse = await sse_response(request, response_cls=SSEResponse)
-    request.app[streams_key].add(stream)
-    try:
-        await stream.wait()
-    finally:
-        request.app[streams_key].discard(stream)
+    async with sse_response(request, response_cls=SSEResponse) as stream:
+        request.app[streams_key].add(stream)
+        try:
+            await stream.wait()
+        finally:
+            request.app[streams_key].discard(stream)
     return stream
 
 

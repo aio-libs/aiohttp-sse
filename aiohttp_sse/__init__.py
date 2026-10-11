@@ -2,15 +2,14 @@ import asyncio
 import io
 import re
 import socket
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from types import TracebackType
 from typing import Any, Self, TypeVar, overload
 
 from aiohttp.abc import AbstractStreamWriter
 from aiohttp.web import BaseRequest, ContentCoding, Request, StreamResponse
 from aiohttp.web_exceptions import HTTPMethodNotAllowed
-
-from .helpers import _ContextManager
 
 __version__ = "3.0"
 __all__ = ["EventSourceResponse", "sse_response"]
@@ -75,10 +74,6 @@ class EventSourceResponse(StreamResponse):
             return False
 
         return not self._ping_task.done()
-
-    async def _prepare(self, request: Request) -> Self:
-        await self.prepare(request)
-        return self
 
     async def prepare(self, request: BaseRequest) -> AbstractStreamWriter | None:
         """Prepare for streaming and send HTTP headers.
@@ -300,7 +295,7 @@ def sse_response(
     allow_all_methods: bool = False,
     send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
     ping_interval: float = EventSourceResponse.DEFAULT_PING_INTERVAL,
-) -> _ContextManager[EventSourceResponse]: ...
+) -> AbstractAsyncContextManager[EventSourceResponse]: ...
 
 
 @overload
@@ -315,7 +310,7 @@ def sse_response(
     send_timeout: float | None = EventSourceResponse.DEFAULT_SEND_TIMEOUT,
     ping_interval: float = EventSourceResponse.DEFAULT_PING_INTERVAL,
     response_cls: type[ESR],
-) -> _ContextManager[ESR]: ...
+) -> AbstractAsyncContextManager[ESR]: ...
 
 
 def sse_response(
@@ -345,4 +340,11 @@ def sse_response(
         send_timeout=send_timeout,
         ping_interval=ping_interval,
     )
-    return _ContextManager(sse._prepare(request))
+    return _stream(sse, request)
+
+
+@asynccontextmanager
+async def _stream(sse: ESR, request: Request) -> AsyncIterator[ESR]:
+    await sse.prepare(request)
+    async with sse as resp:
+        yield resp
