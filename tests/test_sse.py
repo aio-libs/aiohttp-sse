@@ -539,7 +539,7 @@ async def test_not_allowed_methods(
     """Check that EventSourceResponse works only with GET method."""
 
     async def handler(request: web.Request) -> EventSourceResponse:
-        async with sse_response(request) as sse:
+        async with sse_response(request):
             assert False
 
     app = web.Application()
