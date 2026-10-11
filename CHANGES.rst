@@ -15,6 +15,14 @@ CHANGES
   for configuring the interval between keep-alive pings.
 - Removed the ``EventSourceResponse.ping_interval`` property. The ping interval can
   now only be set via the ``ping_interval`` parameter when creating the response.
+- ``ping_interval`` must now be positive; ``0`` previously resulted in a
+  continuous flood of ping messages.
+- ``send()`` now raises ``ValueError`` if the ``id`` or ``event`` fields contain
+  line separators (or null characters for ``id``), instead of silently
+  stripping them.
+- ``send()`` now raises ``ValueError`` for a negative ``retry`` instead of
+  sending a value that clients would ignore. The runtime ``TypeError`` for
+  non-``int`` values has been removed (use a type checker).
 
 2.2.0 (2024-02-29)
 ==================
