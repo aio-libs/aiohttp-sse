@@ -4,9 +4,16 @@ CHANGES
 
 .. towncrier release notes start
 
-3.0 (2025-xx-xx)
+3.0 (2026-10-11)
 ================
 
+- Added ``send_timeout`` parameter to ``EventSourceResponse`` and ``sse_response()``
+  so a stalled client can no longer block ``send()`` forever: a write that
+  exceeds the timeout raises ``TimeoutError`` and aborts the connection. On
+  Linux the timeout is also applied at the TCP level (``TCP_USER_TIMEOUT``),
+  so a dead peer is detected even between sends as pings go unacknowledged.
+  Defaults to 120 seconds; pass ``None`` to restore the previous unbounded
+  behaviour.
 - Disallow HTTP methods other than GET by default.
   Allowing other methods can be done by passing ``allow_all_methods`` to ``EventSourceResponse``.
   Note that SSE on browsers will only work with GET endpoints, this flag just serves as a
@@ -15,18 +22,16 @@ CHANGES
   for configuring the interval between keep-alive pings.
 - Removed the ``EventSourceResponse.ping_interval`` property. The ping interval can
   now only be set via the ``ping_interval`` parameter when creating the response.
-- ``ping_interval`` must now be positive; ``0`` previously resulted in a
-  continuous flood of ping messages.
 - ``send()`` now raises ``ValueError`` if the ``id`` or ``event`` fields contain
   line separators (or null characters for ``id``), instead of silently
   stripping them.
 - ``send()`` now raises ``ValueError`` for a negative ``retry`` instead of
-  sending a value that clients would ignore. The runtime ``TypeError`` for
-  non-``int`` values has been removed (use a type checker).
+  sending a value that clients would ignore.
 - ``sse_response()`` is now usable only as an async context manager; the
-  ``resp = await sse_response(...)`` form has been removed. To manage the
-  response manually, instantiate ``EventSourceResponse`` and call
-  ``prepare()`` directly.
+  ``resp = await sse_response(...)`` form has been removed. If ``async with`` must be
+  avoided for some reason, use something like ``contextlib.AsyncExitStack``.
+- Dropped support for Python 3.8, 3.9 and 3.10; added support for Python 3.13,
+  3.14 and 3.15.
 
 2.2.0 (2024-02-29)
 ==================
