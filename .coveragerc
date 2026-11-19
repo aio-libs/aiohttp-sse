@@ -1,6 +1,9 @@
 # .coveragerc to control coverage.py
 [run]
 branch = True
+include =
+    aiohttp_sse/*
+    tests/*
 
 [report]
 exclude_also =
